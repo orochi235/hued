@@ -1,0 +1,35 @@
+#compdef hued
+
+_hued_colors() {
+  local names_file="${HOMEBREW_PREFIX:-/opt/homebrew}/share/hued-names.sh"
+  [[ -f "$names_file" ]] || return
+  grep -o '^\[[^]]*\]' "$names_file" | tr -d '[]'
+}
+
+_hued() {
+  local state
+
+  _arguments \
+    '1: :->subcommand' \
+    '*: :->args'
+
+  case $state in
+    subcommand)
+      local subcommands=(
+        'set:create or update .hued in the current directory'
+        'where:print the path to the controlling .hued file'
+      )
+      _describe 'subcommand' subcommands
+      ;;
+    args)
+      case $words[2] in
+        set)
+          local colors=("${(@f)$(_hued_colors)}")
+          _describe 'color' colors
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_hued "$@"
