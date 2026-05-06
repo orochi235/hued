@@ -14,6 +14,19 @@ else
   _TERMCOLOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
+declare -A _TERMCOLOR_NAMES
+
+_termcolor_lookup() {
+  local key="$1"
+  if [[ -z "${_TERMCOLOR_NAMES[$key]+_}" ]]; then
+    local hit
+    hit=$(grep -m1 "^\[${key}\]=" "$_TERMCOLOR_DIR/termcolor-names.sh" 2>/dev/null | cut -d= -f2)
+    _TERMCOLOR_NAMES[$key]="${hit:-__miss__}"
+  fi
+  local val="${_TERMCOLOR_NAMES[$key]}"
+  [[ "$val" != "__miss__" ]] && printf '%s' "$val"
+}
+
 _termcolor_apply() {
   local dir="$PWD"
   while [[ "$dir" != / && -n "$dir" ]]; do
@@ -23,15 +36,11 @@ _termcolor_apply() {
       if [[ -n "$value" ]]; then
         local key="${value#\#}"
         key="${key// /}"
-        if [[ ! "$key" =~ ^[0-9a-f]{6}$ ]]; then
-          # named color — lazy-load lookup table on first use
-          if [[ -z "${_TERMCOLOR_NAMES+_}" ]]; then
-            [[ -f "$_TERMCOLOR_DIR/termcolor-names.sh" ]] && source "$_TERMCOLOR_DIR/termcolor-names.sh"
-          fi
-          hex="${_TERMCOLOR_NAMES[$key]:-}"
-          hex="${hex#\#}"
-        else
+        if [[ "$key" =~ ^[0-9a-f]{6}$ ]]; then
           hex="$key"
+        else
+          hex="$(_termcolor_lookup "$key")"
+          hex="${hex#\#}"
         fi
         [[ -n "$hex" ]] && printf "\e]11;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
         return
