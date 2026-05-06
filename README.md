@@ -5,6 +5,7 @@ Set your terminal background color per directory, like `.editorconfig` for your 
 Place a `.termcolor` file anywhere in your project tree:
 
 ```ini
+# https://github.com/orochi235/termcolor
 background=#1a0a0a
 ```
 
