@@ -8,8 +8,11 @@
 # Zsh:   source termcolor.sh
 #        precmd_functions+=(_termcolor_apply)
 
-_TERMCOLOR_DIR="${BASH_SOURCE[0]:-${(%):-%x}}"
-_TERMCOLOR_DIR="${_TERMCOLOR_DIR%/*}"
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+  _TERMCOLOR_DIR="${${(%):-%x}:h}"
+else
+  _TERMCOLOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 [[ -f "$_TERMCOLOR_DIR/termcolor-names.sh" ]] && source "$_TERMCOLOR_DIR/termcolor-names.sh"
 
 _termcolor_apply() {
