@@ -67,12 +67,16 @@ PROMPT_COMMAND="_hued_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 ## CLI
 
 ```
-hued                   # print current colors
-hued set <color>       # set background color (shorthand)
-hued set bg <color>    # set background color
-hued set fg <color>    # set foreground color
-hued where             # print the path to the controlling .hued file
+hued                          # print current colors
+hued where                    # print path to the controlling .hued file
+hued set <color>              # set background color
+hued set bg <color>           # set background color
+hued set fg <color>           # set foreground color
+hued pack [<dir>] [-o <file>] # export all .hued files under <dir> to JSON
+hued unpack <file> [--force]  # restore .hued files from a JSON export
 ```
+
+`pack` defaults to `$HOME` if no directory is given. `unpack` skips existing `.hued` files unless `--force` is passed.
 
 ## Terminal support
 
