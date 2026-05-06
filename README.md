@@ -63,6 +63,14 @@ PROMPT_COMMAND="_termcolor_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 
 **Fish**: copy `termcolor.fish` to `~/.config/fish/conf.d/termcolor.fish`.
 
+## CLI
+
+```
+termcolor              # print the current directory's background color
+termcolor set <color>  # create or update .termcolor in the current directory
+termcolor where        # print the path to the controlling .termcolor file
+```
+
 ## Terminal support
 
 Uses the `\e]11;rgb:RR/GG/BB\a` OSC escape sequence, supported by iTerm2, Terminal.app, Alacritty, Kitty, WezTerm, and most modern terminals.
