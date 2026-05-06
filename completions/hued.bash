@@ -4,24 +4,23 @@ _hued_completion() {
   prev="${COMP_WORDS[COMP_CWORD-1]}"
   pprev="${COMP_WORDS[COMP_CWORD-2]:-}"
 
+  local names_file="${HOMEBREW_PREFIX:-/opt/homebrew}/share/hued-names.sh"
+
   if [[ $COMP_CWORD -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "set where" -- "$cur"))
+    COMPREPLY=($(compgen -W "set where pack unpack" -- "$cur"))
   elif [[ $prev == "set" ]]; then
     COMPREPLY=($(compgen -W "bg fg" -- "$cur"))
-    # also complete colors directly for backward compat
-    local names_file="${HOMEBREW_PREFIX:-/opt/homebrew}/share/hued-names.sh"
-    if [[ -f "$names_file" ]]; then
-      local colors
-      colors=$(grep -o '^\[[^]]*\]' "$names_file" | tr -d '[]')
-      COMPREPLY+=($(compgen -W "$colors" -- "$cur"))
-    fi
+    [[ -f "$names_file" ]] && COMPREPLY+=($(compgen -W "$(grep -o '^\[[^]]*\]' "$names_file" | tr -d '[]')" -- "$cur"))
   elif [[ "$pprev" == "set" && ( "$prev" == "bg" || "$prev" == "fg" ) ]]; then
-    local names_file="${HOMEBREW_PREFIX:-/opt/homebrew}/share/hued-names.sh"
-    if [[ -f "$names_file" ]]; then
-      local colors
-      colors=$(grep -o '^\[[^]]*\]' "$names_file" | tr -d '[]')
-      COMPREPLY=($(compgen -W "$colors" -- "$cur"))
-    fi
+    [[ -f "$names_file" ]] && COMPREPLY=($(compgen -W "$(grep -o '^\[[^]]*\]' "$names_file" | tr -d '[]')" -- "$cur"))
+  elif [[ $prev == "pack" ]]; then
+    COMPREPLY=($(compgen -d -- "$cur"))
+  elif [[ $prev == "-o" ]]; then
+    COMPREPLY=($(compgen -f -- "$cur"))
+  elif [[ $prev == "unpack" ]]; then
+    COMPREPLY=($(compgen -f -X '!*.json' -- "$cur"))
+  elif [[ "$pprev" == "unpack" ]]; then
+    COMPREPLY=($(compgen -W "--force" -- "$cur"))
   fi
 }
 
