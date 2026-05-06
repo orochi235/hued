@@ -139,3 +139,36 @@ teardown() {
   [ "$status" -eq 0 ]
   grep -q "background=#abcdef" target/.hued
 }
+
+# --- trailing newlines ---
+
+_ends_with_newline() {
+  local cmd=("$@")
+  "${cmd[@]}" > _out.txt
+  [[ "$(tail -c1 _out.txt | od -An -tx1 | tr -d ' \n')" == "0a" ]]
+}
+
+@test "no args: output ends with newline" {
+  printf "background=#1a0a0a\n" > .hued
+  _ends_with_newline "$HUED"
+}
+
+@test "where: output ends with newline" {
+  printf "background=#1a0a0a\n" > .hued
+  _ends_with_newline "$HUED" where
+}
+
+@test "set: output ends with newline" {
+  _ends_with_newline "$HUED" set "#ff0000"
+}
+
+@test "pack: output ends with newline" {
+  printf "background=#111111\n" > .hued
+  _ends_with_newline "$HUED" pack "$TMPDIR"
+}
+
+@test "unpack: output ends with newline" {
+  mkdir -p target
+  printf '{ "%s/target": { "background": "#abcdef" } }' "$TMPDIR" > hued.json
+  _ends_with_newline "$HUED" unpack hued.json
+}
