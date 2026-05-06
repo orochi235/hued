@@ -52,8 +52,74 @@ case "${1:-}" in
     esac
     ;;
 
+  pack)
+    dir="${2:-$HOME}"
+    dir="$(cd "$dir" && pwd)"
+    output=""
+    shift 2 || true
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        -o) output="${2:-}"; shift 2 ;;
+        *) echo "Usage: hued pack [<dir>] [-o <file>]" >&2; exit 1 ;;
+      esac
+    done
+    result=$(python3 - "$dir" <<'PYEOF'
+import os, json, sys
+
+root_dir = sys.argv[1]
+result = {}
+for dirpath, _, files in os.walk(root_dir):
+    if '.hued' in files:
+        config = {}
+        with open(os.path.join(dirpath, '.hued')) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    k, v = line.split('=', 1)
+                    config[k.strip()] = v.strip()
+        if config:
+            result[dirpath] = config
+print(json.dumps(result, indent=2))
+PYEOF
+)
+    if [[ -n "$output" ]]; then
+      echo "$result" > "$output"
+      echo "Wrote $(echo "$result" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))') entries to $output"
+    else
+      echo "$result"
+    fi
+    ;;
+
+  unpack)
+    [[ -z "${2:-}" ]] && { echo "Usage: hued unpack <file> [--force]" >&2; exit 1; }
+    file="$2"
+    force=0
+    [[ "${3:-}" == "--force" ]] && force=1
+    python3 - "$file" "$force" <<'PYEOF'
+import os, json, sys
+
+file, force = sys.argv[1], sys.argv[2] == '1'
+with open(file) as f:
+    data = json.load(f)
+
+for dirpath, config in data.items():
+    hued_path = os.path.join(dirpath, '.hued')
+    if os.path.exists(hued_path) and not force:
+        print(f'Skipping {hued_path} (already exists, use --force to overwrite)', file=sys.stderr)
+        continue
+    os.makedirs(dirpath, exist_ok=True)
+    with open(hued_path, 'w') as f:
+        f.write('# https://github.com/orochi235/hued\n')
+        for k, v in config.items():
+            f.write(f'{k}={v}\n')
+    print(f'Wrote {hued_path}')
+PYEOF
+    ;;
+
   *)
-    echo "Usage: hued [where | set [bg|fg] <color>]" >&2
+    echo "Usage: hued [where | set [bg|fg] <color> | pack [<dir>] [-o <file>] | unpack <file> [--force]]" >&2
     exit 1
     ;;
 esac
