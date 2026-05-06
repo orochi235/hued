@@ -81,7 +81,7 @@ hued unpack <file> [--force]  # restore .hued files from a JSON export
 ## FAQ
 
 **Is hued a daemon?**
-No. Calm down, tucker.
+No. Calm down, Tucker.
 
 ## Terminal support
 
