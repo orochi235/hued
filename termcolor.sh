@@ -20,10 +20,9 @@ _termcolor_apply() {
   while [[ "$dir" != / && -n "$dir" ]]; do
     if [[ -f "$dir/.termcolor" ]]; then
       local value hex
-      value=$(grep -m1 '^background=' "$dir/.termcolor" | cut -d= -f2 | tr -d '[:space:]')
+      value=$(grep -m1 '^background=' "$dir/.termcolor" | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
       if [[ -n "$value" ]]; then
         local key="${value#\#}"
-        key="${key,,}"              # lowercase
         key="${key// /}"           # strip spaces
         if [[ -n "${_TERMCOLOR_NAMES[$key]+_}" ]]; then
           hex="${_TERMCOLOR_NAMES[$key]#\#}"
