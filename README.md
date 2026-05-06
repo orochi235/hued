@@ -11,6 +11,12 @@ background=#1a0a0a
 
 When you `cd` into that directory (or any subdirectory), your terminal background changes. When you leave, it resets. The nearest `.termcolor` walking up from `$PWD` wins.
 
+Named colors from the [X11 rgb.txt](https://gitlab.freedesktop.org/xorg/app/rgb/-/raw/master/rgb.txt) list are supported in addition to hex values:
+
+```ini
+background=midnightblue
+```
+
 ## Install
 
 ### Homebrew (recommended)
