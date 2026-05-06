@@ -1,15 +1,15 @@
-# termcolor
+# hued
 
 Set your terminal background color per directory, like `.editorconfig` for your terminal.
 
-Place a `.termcolor` file anywhere in your project tree:
+Place a `.hued` file anywhere in your project tree:
 
 ```ini
-# https://github.com/orochi235/termcolor
+# https://github.com/orochi235/hued
 background=#1a0a0a
 ```
 
-When you `cd` into that directory (or any subdirectory), your terminal background changes. When you leave, it resets. The nearest `.termcolor` walking up from `$PWD` wins.
+When you `cd` into that directory (or any subdirectory), your terminal background changes. When you leave, it resets. The nearest `.hued` walking up from `$PWD` wins.
 
 Named colors from the [X11 rgb.txt](https://gitlab.freedesktop.org/xorg/app/rgb/-/raw/master/rgb.txt) list are supported in addition to hex values:
 
@@ -22,27 +22,27 @@ background=midnightblue
 ### Homebrew (recommended)
 
 ```zsh
-brew tap orochi235/termcolor
-brew install termcolor
+brew tap orochi235/hued
+brew install hued
 ```
 
 Then add to your shell config:
 
 **Zsh** (`~/.zshrc`):
 ```zsh
-source "$(brew --prefix)/share/termcolor.sh"
-precmd_functions+=(_termcolor_apply)
+source "$(brew --prefix)/share/hued.sh"
+precmd_functions+=(_hued_apply)
 ```
 
 **Bash** (`~/.bashrc`):
 ```bash
-source "$(brew --prefix)/share/termcolor.sh"
-PROMPT_COMMAND="_termcolor_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+source "$(brew --prefix)/share/hued.sh"
+PROMPT_COMMAND="_hued_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 ```
 
 **Fish**:
 ```fish
-cp (brew --prefix)/share/termcolor.fish ~/.config/fish/conf.d/termcolor.fish
+cp (brew --prefix)/share/hued.fish ~/.config/fish/conf.d/hued.fish
 ```
 
 ### Manual
@@ -51,24 +51,24 @@ Clone the repo and source the script directly:
 
 **Zsh**:
 ```zsh
-source /path/to/termcolor.sh
-precmd_functions+=(_termcolor_apply)
+source /path/to/hued.sh
+precmd_functions+=(_hued_apply)
 ```
 
 **Bash**:
 ```bash
-source /path/to/termcolor.sh
-PROMPT_COMMAND="_termcolor_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+source /path/to/hued.sh
+PROMPT_COMMAND="_hued_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 ```
 
-**Fish**: copy `termcolor.fish` to `~/.config/fish/conf.d/termcolor.fish`.
+**Fish**: copy `hued.fish` to `~/.config/fish/conf.d/hued.fish`.
 
 ## CLI
 
 ```
-termcolor              # print the current directory's background color
-termcolor set <color>  # create or update .termcolor in the current directory
-termcolor where        # print the path to the controlling .termcolor file
+hued              # print the current directory's background color
+hued set <color>  # create or update .hued in the current directory
+hued where        # print the path to the controlling .hued file
 ```
 
 ## Terminal support

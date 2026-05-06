@@ -1,12 +1,12 @@
-# termcolor — set terminal background color based on nearest .termcolor file
+# hued — set terminal background color based on nearest .hued file
 #
 # Place this file in ~/.config/fish/conf.d/
 
-function _termcolor_apply --on-event fish_prompt
+function _hued_apply --on-event fish_prompt
     set dir $PWD
     while test "$dir" != /
-        if test -f "$dir/.termcolor"
-            set hex (grep -m1 '^background=' "$dir/.termcolor" | cut -d= -f2 | string trim | string replace '#' '')
+        if test -f "$dir/.hued"
+            set hex (grep -m1 '^background=' "$dir/.hued" | cut -d= -f2 | string trim | string replace '#' '')
             if test -n "$hex"
                 printf "\e]11;rgb:%s/%s/%s\a" \
                     (string sub -s 1 -l 2 $hex) \
