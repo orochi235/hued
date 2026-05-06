@@ -1,4 +1,4 @@
-.PHONY: generate
+.PHONY: color-names
 
-generate:
+color-names:
 	./scripts/generate-names.sh
