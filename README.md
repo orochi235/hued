@@ -78,6 +78,11 @@ hued unpack <file> [--force]  # restore .hued files from a JSON export
 
 `pack` defaults to `$HOME` if no directory is given. `unpack` skips existing `.hued` files unless `--force` is passed.
 
+## FAQ
+
+**Is hued a daemon?**
+No. Calm down, tucker.
+
 ## Terminal support
 
 Uses the `\e]11;rgb:RR/GG/BB\a` OSC escape sequence, supported by iTerm2, Terminal.app, Alacritty, Kitty, WezTerm, and most modern terminals.
