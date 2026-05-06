@@ -1,12 +1,13 @@
 # hued
 
-Set your terminal background color per directory, like `.editorconfig` for your terminal.
+Set your terminal colors per directory, like `.editorconfig` for your terminal.
 
 Place a `.hued` file anywhere in your project tree:
 
 ```ini
 # https://github.com/orochi235/hued
 background=#1a0a0a
+foreground=#c8ff59
 ```
 
 When you `cd` into that directory (or any subdirectory), your terminal background changes. When you leave, it resets. The nearest `.hued` walking up from `$PWD` wins.
@@ -66,9 +67,11 @@ PROMPT_COMMAND="_hued_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 ## CLI
 
 ```
-hued              # print the current directory's background color
-hued set <color>  # create or update .hued in the current directory
-hued where        # print the path to the controlling .hued file
+hued                   # print current colors
+hued set <color>       # set background color (shorthand)
+hued set bg <color>    # set background color
+hued set fg <color>    # set foreground color
+hued where             # print the path to the controlling .hued file
 ```
 
 ## Terminal support

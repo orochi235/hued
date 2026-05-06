@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# hued — manage terminal background colors per directory
+# hued — manage terminal colors per directory
 
 set -euo pipefail
 
@@ -12,10 +12,22 @@ _hued_find() {
   return 1
 }
 
+_hued_set_key() {
+  local key="$1" color="$2"
+  if [[ -f .hued ]]; then
+    grep -v "^${key}=" .hued > .hued.tmp
+    echo "${key}=${color}" >> .hued.tmp
+    mv .hued.tmp .hued
+  else
+    printf "# https://github.com/orochi235/hued\n${key}=%s\n" "$color" > .hued
+  fi
+  echo "Set ${key} to ${color} in ${PWD}/.hued"
+}
+
 case "${1:-}" in
   "")
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
-    grep -m1 '^background=' "$file" | cut -d= -f2 | tr -d '[:space:]'
+    grep '^background=\|^foreground=' "$file"
     ;;
 
   where)
@@ -24,21 +36,24 @@ case "${1:-}" in
     ;;
 
   set)
-    [[ -z "${2:-}" ]] && { echo "Usage: hued set <color>" >&2; exit 1; }
-    color="$2"
-    if [[ -f .hued ]]; then
-      # Update existing file, preserving comments and other lines
-      grep -v '^background=' .hued > .hued.tmp
-      echo "background=${color}" >> .hued.tmp
-      mv .hued.tmp .hued
-    else
-      printf "# https://github.com/orochi235/hued\nbackground=%s\n" "$color" > .hued
-    fi
-    echo "Set background to ${color} in ${PWD}/.hued"
+    case "${2:-}" in
+      bg|background)
+        [[ -z "${3:-}" ]] && { echo "Usage: hued set bg <color>" >&2; exit 1; }
+        _hued_set_key "background" "$3"
+        ;;
+      fg|foreground)
+        [[ -z "${3:-}" ]] && { echo "Usage: hued set fg <color>" >&2; exit 1; }
+        _hued_set_key "foreground" "$3"
+        ;;
+      *)
+        [[ -z "${2:-}" ]] && { echo "Usage: hued set [bg|fg] <color>" >&2; exit 1; }
+        _hued_set_key "background" "$2"
+        ;;
+    esac
     ;;
 
   *)
-    echo "Usage: hued [where | set <color>]" >&2
+    echo "Usage: hued [where | set [bg|fg] <color>]" >&2
     exit 1
     ;;
 esac

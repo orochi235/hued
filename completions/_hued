@@ -11,7 +11,8 @@ _hued() {
 
   _arguments \
     '1: :->subcommand' \
-    '*: :->args'
+    '2: :->channel' \
+    '3: :->color'
 
   case $state in
     subcommand)
@@ -21,7 +22,21 @@ _hued() {
       )
       _describe 'subcommand' subcommands
       ;;
-    args)
+    channel)
+      case $words[2] in
+        set)
+          local channels=(
+            'bg:set background color'
+            'fg:set foreground color'
+          )
+          local colors=("${(@f)$(_hued_colors)}")
+          _alternative \
+            'channels:channel:((bg\:"set background color" fg\:"set foreground color"))' \
+            'colors:color:($colors)'
+          ;;
+      esac
+      ;;
+    color)
       case $words[2] in
         set)
           local colors=("${(@f)$(_hued_colors)}")

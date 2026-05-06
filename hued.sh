@@ -1,4 +1,4 @@
-# hued — set terminal background color based on nearest .hued file
+# hued — set terminal colors based on nearest .hued file
 #
 # Requires bash 4+ or zsh.
 #
@@ -27,26 +27,42 @@ _hued_lookup() {
   [[ "$val" != "__miss__" ]] && printf '%s' "$val"
 }
 
+_hued_resolve() {
+  local value="$1"
+  local key="${value#\#}"
+  key="${key// /}"
+  if [[ "$key" =~ ^[0-9a-f]{6}$ ]]; then
+    printf '%s' "$key"
+  else
+    local hex
+    hex="$(_hued_lookup "$key")"
+    printf '%s' "${hex#\#}"
+  fi
+}
+
 _hued_apply() {
   local dir="$PWD"
   while [[ "$dir" != / && -n "$dir" ]]; do
     if [[ -f "$dir/.hued" ]]; then
-      local value hex
-      value=$(grep -m1 '^background=' "$dir/.hued" | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-      if [[ -n "$value" ]]; then
-        local key="${value#\#}"
-        key="${key// /}"
-        if [[ "$key" =~ ^[0-9a-f]{6}$ ]]; then
-          hex="$key"
-        else
-          hex="$(_hued_lookup "$key")"
-          hex="${hex#\#}"
-        fi
+      local bg fg hex
+
+      bg=$(grep -m1 '^background=' "$dir/.hued" | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+      fg=$(grep -m1 '^foreground=' "$dir/.hued" | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+
+      if [[ -n "$bg" ]]; then
+        hex="$(_hued_resolve "$bg")"
         [[ -n "$hex" ]] && printf "\e]11;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
-        return
       fi
+
+      if [[ -n "$fg" ]]; then
+        hex="$(_hued_resolve "$fg")"
+        [[ -n "$hex" ]] && printf "\e]10;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
+      fi
+
+      [[ -n "$bg" || -n "$fg" ]] && return
     fi
     dir="${dir%/*}"
   done
-  printf "\e]111;\a"
+  printf "\e]111;\a"  # reset background
+  printf "\e]110;\a"  # reset foreground
 }
