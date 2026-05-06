@@ -1,6 +1,6 @@
 # hued
 
-Set terminal colors declaratively per directory.
+Change terminal colors declaratively per directory.
 
 Place a `.hued` file anywhere in your project tree:
 
