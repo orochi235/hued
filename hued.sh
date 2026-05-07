@@ -20,7 +20,7 @@ _hued_lookup() {
   local key="$1"
   if [[ -z "${_HUED_NAMES[$key]+_}" ]]; then
     local hit
-    hit=$(grep -m1 "^\[${key}\]=" "$_HUED_DIR/hued-names.sh" 2>/dev/null | cut -d= -f2)
+    hit=$(grep -m1 "\[${key}\]=" "$_HUED_DIR/hued-names.sh" 2>/dev/null | cut -d= -f2)
     _HUED_NAMES[$key]="${hit:-__miss__}"
   fi
   local val="${_HUED_NAMES[$key]}"

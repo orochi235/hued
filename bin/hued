@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+_HUED_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
 _hued_find() {
   local dir="$PWD"
   while [[ "$dir" != / && -n "$dir" ]]; do
@@ -12,8 +14,34 @@ _hued_find() {
   return 1
 }
 
+_hued_normalize_color() {
+  local bare="${1#\#}"
+
+  # Expand 3-char shorthand to 6-char
+  if [[ "$bare" =~ ^[0-9a-fA-F]{3}$ ]]; then
+    bare="${bare:0:1}${bare:0:1}${bare:1:1}${bare:1:1}${bare:2:1}${bare:2:1}"
+  fi
+
+  # 6-char hex — normalize to lowercase #rrggbb
+  if [[ "$bare" =~ ^[0-9a-fA-F]{6}$ ]]; then
+    printf '#%s' "${bare,,}"
+    return
+  fi
+
+  # Named color — resolve via hued-names.sh
+  local names_file="$_HUED_DIR/hued-names.sh"
+  if [[ -f "$names_file" ]]; then
+    local hex
+    hex=$(grep -m1 "\[${bare}\]=" "$names_file" 2>/dev/null | cut -d= -f2)
+    [[ -n "$hex" ]] && printf '%s' "$hex" && return
+  fi
+
+  printf '%s' "$1"
+}
+
 _hued_set_key() {
-  local key="$1" color="$2"
+  local key="$1" color
+  color="$(_hued_normalize_color "$2")"
   if [[ -f .hued ]]; then
     grep -v "^${key}=" .hued > .hued.tmp
     echo "${key}=${color}" >> .hued.tmp

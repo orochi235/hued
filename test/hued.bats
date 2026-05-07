@@ -84,6 +84,48 @@ teardown() {
   grep -q "github.com/orochi235/hued" .hued
 }
 
+@test "set bg: accepts hex without leading #" {
+  run "$HUED" set bg "ff0000"
+  [ "$status" -eq 0 ]
+  grep -q "background=#ff0000" .hued
+}
+
+@test "set bg: accepts 3-char hex and expands to 6-char" {
+  run "$HUED" set bg "#f00"
+  [ "$status" -eq 0 ]
+  grep -q "background=#ff0000" .hued
+}
+
+@test "set bg: accepts 3-char hex without leading #" {
+  run "$HUED" set bg "f00"
+  [ "$status" -eq 0 ]
+  grep -q "background=#ff0000" .hued
+}
+
+@test "set bg: normalizes hex to lowercase" {
+  run "$HUED" set bg "FF0000"
+  [ "$status" -eq 0 ]
+  grep -q "background=#ff0000" .hued
+}
+
+@test "set bg: resolves named color to hex" {
+  run "$HUED" set bg "aliceblue"
+  [ "$status" -eq 0 ]
+  grep -q "background=#f0f8ff" .hued
+}
+
+@test "set bg: accepts background as keyword" {
+  run "$HUED" set background "#ff0000"
+  [ "$status" -eq 0 ]
+  grep -q "background=#ff0000" .hued
+}
+
+@test "set fg: accepts foreground as keyword" {
+  run "$HUED" set foreground "#00ff00"
+  [ "$status" -eq 0 ]
+  grep -q "foreground=#00ff00" .hued
+}
+
 # --- pack ---
 
 @test "pack: generates json from directory tree" {
