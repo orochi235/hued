@@ -228,6 +228,11 @@ def update(state: State, event: KeyEvent) -> tuple[State, Action]:
     # Escape (mirrors App.tsx:133-136)
     # -----------------------------------------------------------------------
     if k is Key.ESC:
+        # In hex mode, ESC exits hex mode instead of switching to nav
+        if state.hex_mode:
+            return dataclasses.replace(
+                state, hex_mode=False, hex_input=""
+            ), Action.CONTINUE
         if pm == "focus":
             return dataclasses.replace(state, panes_mode="nav"), Action.CONTINUE
         return state, Action.CONTINUE
@@ -340,6 +345,30 @@ def update(state: State, event: KeyEvent) -> tuple[State, Action]:
             ), Action.CONTINUE
         if k is Key.CHAR and ch == "l":
             return dataclasses.replace(state, live=not state.live), Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # SW pane — hex-input mode (hex_mode=True) (mirrors App.tsx:221-234)
+    # -----------------------------------------------------------------------
+    if p == "sw" and state.hex_mode:
+        if k is Key.BACKSPACE or k is Key.DELETE:
+            next_input = state.hex_input[:-1]
+            new_state = dataclasses.replace(state, hex_input=next_input)
+            bare = next_input.lstrip("#")
+            if len(bare) == 6 and all(c in "0123456789abcdefABCDEF" for c in bare):
+                new_state = _set_current(new_state, hex_to_rgb("#" + bare))
+            return new_state, Action.CONTINUE
+
+        if k is Key.CHAR and ch in "0123456789abcdefABCDEFABCDEF#":
+            # TS: (hi + input).slice(-7) — keep only the last 7 characters
+            raw = (state.hex_input + ch)[-7:]
+            new_state = dataclasses.replace(state, hex_input=raw)
+            bare = raw.lstrip("#")
+            if len(bare) == 6 and all(c in "0123456789abcdefABCDEF" for c in bare):
+                new_state = _set_current(new_state, hex_to_rgb("#" + bare))
+            return new_state, Action.CONTINUE
+
+        # Any other key in hex mode: absorb
+        return state, Action.CONTINUE
 
     # -----------------------------------------------------------------------
     # SW pane — slider controls (hex_mode=False) (mirrors App.tsx:206-219)
