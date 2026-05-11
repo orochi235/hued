@@ -194,6 +194,128 @@ def update(state: State, event: KeyEvent) -> tuple[State, Action]:
 
     Mirrors the TS useInput handler in App.tsx:120-241 branch-for-branch.
     """
-    # All branches are implemented in Tasks 3-7.
-    # Unknown keys: no-op.
+    from src.picker.components.slicer import VIEWS
+
+    k = event.key
+    ch = event.char or ""
+    p = state.pane
+    pm = state.panes_mode
+
+    # -----------------------------------------------------------------------
+    # Search-focused mode: all keys go here first (mirrors App.tsx:122-129)
+    # -----------------------------------------------------------------------
+    if state.search_focused:
+        if k is Key.ESC:
+            return dataclasses.replace(state, search_focused=False), Action.CONTINUE
+        if k is Key.ENTER or k is Key.TAB:
+            return dataclasses.replace(
+                state, search_focused=False, pane="ne", panes_mode="focus"
+            ), Action.CONTINUE
+        if k is Key.CHAR and ch.isalnum():
+            return dataclasses.replace(state, filter=state.filter + ch), Action.CONTINUE
+        if k is Key.BACKSPACE or k is Key.DELETE:
+            return dataclasses.replace(state, filter=state.filter[:-1]), Action.CONTINUE
+        # Any other key while search focused: absorb without changing state
+        return state, Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # Ctrl-C: cancel immediately (mirrors App.tsx:131)
+    # -----------------------------------------------------------------------
+    if k is Key.CTRL_C:
+        return state, Action.CANCEL
+
+    # -----------------------------------------------------------------------
+    # Escape (mirrors App.tsx:133-136)
+    # -----------------------------------------------------------------------
+    if k is Key.ESC:
+        if pm == "focus":
+            return dataclasses.replace(state, panes_mode="nav"), Action.CONTINUE
+        return state, Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # Tab: cycle pane, reset channel/acc, enter nav (mirrors App.tsx:138-143)
+    # -----------------------------------------------------------------------
+    if k is Key.TAB:
+        next_pane = _PANE_ORDER[(_PANE_ORDER.index(p) + 1) % len(_PANE_ORDER)]
+        return dataclasses.replace(
+            state,
+            pane=next_pane,
+            focused_channel=0,
+            acc_value=None,
+            panes_mode="nav",
+        ), Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # Nav-mode arrow keys (mirrors App.tsx:145-158)
+    # -----------------------------------------------------------------------
+    if pm == "nav":
+        _neighbors: dict[str, dict[str, str]] = {
+            "nw": {"right": "ne", "down": "sw"},
+            "ne": {"left": "nw", "down": "se"},
+            "sw": {"up": "nw", "right": "se"},
+            "se": {"up": "ne", "left": "sw"},
+        }
+        nb = _neighbors[p]
+        if k is Key.ARROW_LEFT and "left" in nb:
+            return dataclasses.replace(state, pane=nb["left"]), Action.CONTINUE
+        if k is Key.ARROW_RIGHT and "right" in nb:
+            return dataclasses.replace(state, pane=nb["right"]), Action.CONTINUE
+        if k is Key.ARROW_UP and "up" in nb:
+            return dataclasses.replace(state, pane=nb["up"]), Action.CONTINUE
+        if k is Key.ARROW_DOWN and "down" in nb:
+            return dataclasses.replace(state, pane=nb["down"]), Action.CONTINUE
+        if k is Key.ENTER:
+            return dataclasses.replace(state, panes_mode="focus"), Action.CONTINUE
+        # Nav mode: global symbol keys still fire (fall through)
+
+    # -----------------------------------------------------------------------
+    # Global symbol keys — fire regardless of pane/mode
+    # (mirrors App.tsx:160-196)
+    # -----------------------------------------------------------------------
+    if k is Key.CHAR:
+        # ` — cycle model forward, reset acc and view_idx
+        if ch == "`":
+            next_model = _MODELS[(_MODELS.index(state.model) + 1) % len(_MODELS)]
+            return dataclasses.replace(
+                state, model=next_model, acc_value=None, view_idx=0
+            ), Action.CONTINUE
+
+        # # — enter hex-input mode, jump to sw pane in focus mode
+        if ch == "#":
+            return dataclasses.replace(
+                state,
+                hex_mode=True,
+                pane="sw",
+                panes_mode="focus",
+                hex_input="#",
+            ), Action.CONTINUE
+
+        # / — focus search input
+        if ch == "/":
+            return dataclasses.replace(state, search_focused=True), Action.CONTINUE
+
+        # \ — cycle sort mode
+        if ch == "\\":
+            next_sort = _SORT_MODES[(_SORT_MODES.index(state.sort_mode) + 1) % len(_SORT_MODES)]
+            return dataclasses.replace(state, sort_mode=next_sort), Action.CONTINUE
+
+        # [ — decrement view_idx (wraps)
+        if ch == "[":
+            n_views = len(VIEWS[state.model])
+            new_idx = (state.view_idx - 1 + n_views) % n_views
+            return dataclasses.replace(state, view_idx=new_idx), Action.CONTINUE
+
+        # ] — increment view_idx (wraps)
+        if ch == "]":
+            n_views = len(VIEWS[state.model])
+            new_idx = (state.view_idx + 1) % n_views
+            return dataclasses.replace(state, view_idx=new_idx), Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # Below this point: focus-mode only (mirrors App.tsx:198)
+    # -----------------------------------------------------------------------
+    if pm != "focus":
+        return state, Action.CONTINUE
+
+    # Pane-specific handlers are implemented in Tasks 4-7.
     return state, Action.CONTINUE

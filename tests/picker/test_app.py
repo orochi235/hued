@@ -179,3 +179,192 @@ def test_update_unknown_key_returns_continue():
     new_s, action = update(s, ev)
     assert action is Action.CONTINUE
     assert new_s == s
+
+
+# ---------------------------------------------------------------------------
+# Task 3: global keys + search mode
+# ---------------------------------------------------------------------------
+
+def test_ctrl_c_returns_cancel():
+    s = _default_state()
+    ev = KeyEvent(key=Key.CTRL_C, char=None, shift=False, ctrl=True)
+    _, action = update(s, ev)
+    assert action is Action.CANCEL
+
+
+def test_escape_in_focus_mode_enters_nav():
+    s = dataclasses.replace(_default_state(), panes_mode="focus")
+    ev = KeyEvent(key=Key.ESC, char=None, shift=False, ctrl=False)
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.panes_mode == "nav"
+
+
+def test_escape_in_nav_mode_is_noop():
+    s = dataclasses.replace(_default_state(), panes_mode="nav")
+    ev = KeyEvent(key=Key.ESC, char=None, shift=False, ctrl=False)
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.panes_mode == "nav"  # unchanged
+
+
+def test_tab_cycles_pane_and_enters_nav():
+    s = dataclasses.replace(_default_state(), pane="nw", panes_mode="focus",
+                            focused_channel=2, acc_value=50)
+    ev = KeyEvent(key=Key.TAB, char=None, shift=False, ctrl=False)
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.pane == "sw"          # nw -> sw (next in PANE_ORDER)
+    assert new_s.focused_channel == 0
+    assert new_s.acc_value is None
+    assert new_s.panes_mode == "nav"
+
+
+def test_tab_wraps_from_last_pane():
+    s = dataclasses.replace(_default_state(), pane="se")
+    ev = KeyEvent(key=Key.TAB, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.pane == "nw"   # se wraps to nw
+
+
+def test_backtick_cycles_model_and_resets():
+    s = dataclasses.replace(_default_state(), model="rgb", acc_value=100, view_idx=2)
+    ev = _char("`")
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.model == "hsl"    # rgb -> hsl
+    assert new_s.acc_value is None
+    assert new_s.view_idx == 0
+
+
+def test_backtick_wraps_last_model():
+    s = dataclasses.replace(_default_state(), model="lab")
+    new_s, _ = update(s, _char("`"))
+    assert new_s.model == "rgb"   # lab wraps to rgb
+
+
+def test_hash_enters_hex_mode():
+    s = dataclasses.replace(_default_state(), panes_mode="nav", pane="nw",
+                            hex_mode=False)
+    ev = _char("#")
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.hex_mode is True
+    assert new_s.pane == "sw"
+    assert new_s.panes_mode == "focus"
+    assert new_s.hex_input == "#"
+
+
+def test_slash_enters_search():
+    s = _default_state()
+    ev = _char("/")
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.search_focused is True
+
+
+def test_backslash_cycles_sort_mode():
+    s = dataclasses.replace(_default_state(), sort_mode="name")
+    ev = _char("\\")
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.sort_mode == "hue"
+
+
+def test_backslash_wraps_sort_mode():
+    s = dataclasses.replace(_default_state(), sort_mode="hue")
+    new_s, _ = update(s, _char("\\"))
+    assert new_s.sort_mode == "name"
+
+
+def test_bracket_left_decrements_view():
+    s = dataclasses.replace(_default_state(), model="rgb", view_idx=2)
+    new_s, _ = update(s, _char("["))
+    assert new_s.view_idx == 1
+
+
+def test_bracket_left_wraps():
+    from src.picker.components.slicer import VIEWS
+    s = dataclasses.replace(_default_state(), model="rgb", view_idx=0)
+    new_s, _ = update(s, _char("["))
+    assert new_s.view_idx == len(VIEWS["rgb"]) - 1
+
+
+def test_bracket_right_increments_view():
+    s = dataclasses.replace(_default_state(), model="rgb", view_idx=0)
+    new_s, _ = update(s, _char("]"))
+    assert new_s.view_idx == 1
+
+
+def test_bracket_right_wraps():
+    from src.picker.components.slicer import VIEWS
+    s = dataclasses.replace(_default_state(), model="rgb",
+                            view_idx=len(VIEWS["rgb"]) - 1)
+    new_s, _ = update(s, _char("]"))
+    assert new_s.view_idx == 0
+
+
+# Search-focused mode
+def test_search_escape_clears_focus():
+    s = dataclasses.replace(_default_state(), search_focused=True, filter="red")
+    ev = KeyEvent(key=Key.ESC, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.search_focused is False
+    assert new_s.filter == "red"   # filter not cleared on escape
+
+
+def test_search_enter_closes_and_focuses_ne():
+    s = dataclasses.replace(_default_state(), search_focused=True, pane="sw")
+    ev = KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.search_focused is False
+    assert new_s.pane == "ne"
+    assert new_s.panes_mode == "focus"
+
+
+def test_search_tab_closes_and_focuses_ne():
+    s = dataclasses.replace(_default_state(), search_focused=True)
+    ev = KeyEvent(key=Key.TAB, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.search_focused is False
+    assert new_s.pane == "ne"
+    assert new_s.panes_mode == "focus"
+
+
+def test_search_alphanumeric_appends_to_filter():
+    s = dataclasses.replace(_default_state(), search_focused=True, filter="re")
+    ev = _char("d")
+    new_s, _ = update(s, ev)
+    assert new_s.filter == "red"
+
+
+def test_search_non_alphanumeric_ignored():
+    s = dataclasses.replace(_default_state(), search_focused=True, filter="re")
+    ev = _char("!")
+    new_s, _ = update(s, ev)
+    assert new_s.filter == "re"   # unchanged
+
+
+def test_search_backspace_trims_filter():
+    s = dataclasses.replace(_default_state(), search_focused=True, filter="red")
+    ev = KeyEvent(key=Key.BACKSPACE, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.filter == "re"
+
+
+def test_search_delete_trims_filter():
+    s = dataclasses.replace(_default_state(), search_focused=True, filter="red")
+    ev = KeyEvent(key=Key.DELETE, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.filter == "re"
+
+
+def test_search_other_key_is_ignored():
+    # An arrow key while search_focused should not change state (and not leak to other branches)
+    s = dataclasses.replace(_default_state(), search_focused=True, filter="r",
+                            pane="sw", panes_mode="focus")
+    ev = KeyEvent(key=Key.ARROW_UP, char=None, shift=False, ctrl=False)
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.filter == "r"       # unchanged — arrow not appended
+    assert new_s.pane == "sw"        # pane not changed
