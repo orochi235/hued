@@ -5,8 +5,9 @@ import termios
 import tty
 import select
 import shutil
+import signal
 from contextlib import contextmanager
-from typing import IO, Iterator
+from typing import IO, Iterator, Callable, Optional
 from src.picker.keys import Key, KeyEvent
 
 
@@ -166,3 +167,29 @@ def get_size() -> tuple[int, int]:
     """Return (columns, rows) for the controlling terminal."""
     s = shutil.get_terminal_size((80, 24))
     return s.columns, s.lines
+
+
+_resize_callback: Optional[Callable[[int, int], None]] = None
+
+
+def _sigwinch_handler(signum: int, frame) -> None:  # noqa: ARG001
+    if _resize_callback is not None:
+        cols, rows = get_size()
+        _resize_callback(cols, rows)
+
+
+def install_resize_handler(callback: Callable[[int, int], None]) -> None:
+    """Install a SIGWINCH handler that calls `callback(cols, rows)` on resize.
+
+    Only one callback is active at a time; installing replaces any prior one.
+    """
+    global _resize_callback
+    _resize_callback = callback
+    signal.signal(signal.SIGWINCH, _sigwinch_handler)
+
+
+def uninstall_resize_handler() -> None:
+    """Restore the default SIGWINCH disposition."""
+    global _resize_callback
+    _resize_callback = None
+    signal.signal(signal.SIGWINCH, signal.SIG_DFL)

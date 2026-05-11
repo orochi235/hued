@@ -1,8 +1,12 @@
+import os
+import signal
+import time
 from src.picker.term import (
     ansi_truecolor_bg, ansi_truecolor_fg, ansi_reset,
     cursor_to, hide_cursor, show_cursor,
     enter_alt_screen, exit_alt_screen, clear_screen,
     get_size,
+    install_resize_handler, uninstall_resize_handler,
 )
 
 
@@ -33,3 +37,25 @@ def test_screen_helpers():
 def test_get_size_returns_positive_pair():
     cols, rows = get_size()
     assert cols >= 1 and rows >= 1
+
+
+def test_resize_handler_fires_on_sigwinch():
+    fired = []
+
+    def on_resize(cols: int, rows: int) -> None:
+        fired.append((cols, rows))
+
+    install_resize_handler(on_resize)
+    try:
+        os.kill(os.getpid(), signal.SIGWINCH)
+        time.sleep(0.05)
+        assert len(fired) == 1
+        cols, rows = fired[0]
+        assert cols >= 1 and rows >= 1
+    finally:
+        uninstall_resize_handler()
+
+
+def test_uninstall_resize_handler_restores_default():
+    install_resize_handler(lambda c, r: None)
+    uninstall_resize_handler()
