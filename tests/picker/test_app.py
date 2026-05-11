@@ -616,3 +616,115 @@ def test_hex_applies_to_fg_when_step_fg():
     new_s, _ = update(s, _char("0"))
     assert new_s.fg == RGB(0, 255, 0)
     assert new_s.bg == s.bg   # bg unchanged
+
+
+# ---------------------------------------------------------------------------
+# Task 6: SE pane — swatch browser
+# ---------------------------------------------------------------------------
+
+# A small fixture color dict for tests
+_TEST_COLORS = {
+    "red":   "#ff0000",
+    "green": "#00ff00",
+    "blue":  "#0000ff",
+    "black": "#000000",
+    "white": "#ffffff",
+}
+
+# Patch NAMED_COLORS so swatch_idx math is deterministic
+import unittest.mock as _mock
+
+def _se_state(**kwargs) -> State:
+    base = dataclasses.replace(
+        _default_state(),
+        pane="se", panes_mode="focus", step="bg",
+        filter="", sort_mode="name", swatch_idx=0,
+    )
+    return dataclasses.replace(base, **kwargs)
+
+
+def test_se_arrow_right_increments_swatch_idx():
+    s = _se_state(swatch_idx=0)
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.swatch_idx == 1
+
+
+def test_se_arrow_right_clamps_at_last():
+    # 5 colors, idx=4 (last), right should clamp
+    s = _se_state(swatch_idx=4)
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.swatch_idx == 4
+
+
+def test_se_arrow_left_decrements_swatch_idx():
+    s = _se_state(swatch_idx=2)
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=False, ctrl=False))
+    assert new_s.swatch_idx == 1
+
+
+def test_se_arrow_left_clamps_at_zero():
+    s = _se_state(swatch_idx=0)
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=False, ctrl=False))
+    assert new_s.swatch_idx == 0
+
+
+def test_se_arrow_down_jumps_by_num_cols(monkeypatch):
+    # num_cols is computed from pane width; we test with a known SE pane width.
+    # The update() function needs cols/rows to compute num_cols. We pass them
+    # via the caller convention: update() accepts optional cols/rows for SE math.
+    # Rather than special-casing the signature, we use the default 80-col layout:
+    # halfW = 40, SE pane w = 40-2 = 38, num_cols = max(1, (38-2)//5) = 7
+    # So arrow-down moves by 7.
+    s = _se_state(swatch_idx=0)
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_DOWN, char=None, shift=False, ctrl=False),
+                          cols=80, rows=24)
+    # With 5 colors, min(5-1, 0+7) = 4
+    assert new_s.swatch_idx == 4
+
+
+def test_se_arrow_up_jumps_by_num_cols(monkeypatch):
+    s = _se_state(swatch_idx=4)
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_UP, char=None, shift=False, ctrl=False),
+                          cols=80, rows=24)
+    # max(0, 4-7) = 0
+    assert new_s.swatch_idx == 0
+
+
+def test_se_navigation_previews_hovered_color():
+    # Right arrow -> swatch_idx=1 -> green -> bg updates to green
+    s = _se_state(swatch_idx=0, bg=RGB(0, 0, 0), step="bg")
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    # Entries in "name" sort order: red, green, blue, black, white
+    # After moving to idx=1 (green #00ff00):
+    assert new_s.bg == RGB(0, 255, 0)
+
+
+def test_se_navigation_previews_to_fg_when_step_fg():
+    s = _se_state(swatch_idx=0, fg=RGB(0, 0, 0), step="fg")
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.fg == RGB(0, 255, 0)
+    assert new_s.bg == s.bg   # bg unchanged
+
+
+def test_se_enter_selects_and_advances():
+    s = _se_state(swatch_idx=2, step="bg")  # blue
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        new_s, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
+    assert action is Action.CONTINUE
+    assert new_s.step == "fg"
+    assert new_s.bg == RGB(0, 0, 255)
+
+
+def test_se_enter_on_fg_step_confirms():
+    s = _se_state(swatch_idx=0, step="fg")
+    with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
+        _, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
+    assert action is Action.CONFIRM
