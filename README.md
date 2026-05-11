@@ -78,6 +78,25 @@ hued unpack <file> [--force]  # restore .hued files from a JSON export
 
 `pack` defaults to `$HOME` if no directory is given. `unpack` skips existing `.hued` files unless `--force` is passed.
 
+## Environment variables
+
+`HUED_BACKGROUND` and `HUED_FOREGROUND` override the nearest `.hued` file on a per-channel basis. This lets [direnv](https://direnv.net/), mise, devenv, or any tool that manages per-directory environment also drive terminal colors:
+
+```bash
+# .envrc
+export HUED_BACKGROUND=midnightblue
+export HUED_FOREGROUND='#c8ff59'
+```
+
+When direnv unloads the variables (you `cd` out of the directory), the next prompt falls back to whatever `.hued` applies — or resets if none does.
+
+Set a value to `none` to explicitly suppress that channel, even if a parent `.hued` would set it. This works in both env vars and `.hued` files:
+
+```ini
+# subdir/.hued — opt out of parent's background, keep its foreground
+background=none
+```
+
 ## FAQ
 
 **Is hued a daemon?**
