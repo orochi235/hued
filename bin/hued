@@ -146,8 +146,38 @@ for dirpath, config in data.items():
 PYEOF
     ;;
 
+  -i|--interactive)
+    _picker="$(dirname "$0")/hued-pick"
+    if [[ ! -f "$_picker" ]]; then
+      echo "hued -i: hued-pick not found at $_picker" >&2
+      exit 1
+    fi
+    _current_bg=""
+    _current_fg=""
+    if _file=$(_hued_find 2>/dev/null); then
+      _raw_bg=$(grep -m1 '^background=' "$_file" | cut -d= -f2 | tr -d '[:space:]')
+      _raw_fg=$(grep -m1 '^foreground=' "$_file" | cut -d= -f2 | tr -d '[:space:]')
+      [[ -n "$_raw_bg" ]] && _current_bg=$(_hued_normalize_color "$_raw_bg")
+      [[ -n "$_raw_fg" ]] && _current_fg=$(_hued_normalize_color "$_raw_fg")
+    fi
+    _live_flag=""
+    for _arg in "$@"; do [[ "$_arg" == "--live" ]] && _live_flag="--live" && break; done
+    _tmpfile=$(mktemp)
+    "$_picker" \
+      ${_current_bg:+--bg "$_current_bg"} \
+      ${_current_fg:+--fg "$_current_fg"} \
+      ${_live_flag:+"$_live_flag"} --output "$_tmpfile" || { rm -f "$_tmpfile"; exit 0; }
+    while IFS='=' read -r _key _value; do
+      case "$_key" in
+        background) _hued_set_key "background" "$_value" ;;
+        foreground) _hued_set_key "foreground" "$_value" ;;
+      esac
+    done < "$_tmpfile"
+    rm -f "$_tmpfile"
+    ;;
+
   *)
-    echo "Usage: hued [where | set [bg|fg] <color> | pack [<dir>] [-o <file>] | unpack <file> [--force]]" >&2
+    echo "Usage: hued [where | set [bg|fg] <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
     exit 1
     ;;
 esac
