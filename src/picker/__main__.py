@@ -12,7 +12,7 @@ What it does:
 """
 import sys
 from src.picker import term as t
-from src.picker.colors import rgb_to_hex, hex_to_rgb
+from src.picker.colors import hex_to_rgb
 from src.picker.names import NAMED_COLORS
 
 
