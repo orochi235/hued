@@ -131,3 +131,46 @@ def oklch_to_rgb(oklch: OKLCH) -> RGB:
         _clamp_u8(_delinearize(gl) * 255),
         _clamp_u8(_delinearize(bl) * 255),
     )
+
+
+@dataclass(frozen=True)
+class Lab:
+    l: int  # 0-100
+    a: int  # -128 to 127
+    b: int  # -128 to 127
+
+
+def rgb_to_lab(rgb: RGB) -> Lab:
+    rl, gl, bl = _linearize(rgb.r), _linearize(rgb.g), _linearize(rgb.b)
+    x = (0.4124564 * rl + 0.3575761 * gl + 0.1804375 * bl) / 0.95047
+    y = (0.2126729 * rl + 0.7151522 * gl + 0.0721750 * bl) / 1.00000
+    z = (0.0193339 * rl + 0.1191920 * gl + 0.9503041 * bl) / 1.08883
+
+    def f(t: float) -> float:
+        return t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
+
+    L = 116 * f(y) - 16
+    A = 500 * (f(x) - f(y))
+    B = 200 * (f(y) - f(z))
+    return Lab(round(L), round(A), round(B))
+
+
+def lab_to_rgb(lab: Lab) -> RGB:
+    fy = (lab.l + 16) / 116
+    fx = lab.a / 500 + fy
+    fz = fy - lab.b / 200
+
+    def fi(t: float) -> float:
+        return t ** 3 if t > 0.206897 else (t - 16 / 116) / 7.787
+
+    x = fi(fx) * 0.95047
+    y = fi(fy) * 1.00000
+    z = fi(fz) * 1.08883
+    rl = +3.2404542 * x - 1.5371385 * y - 0.4985314 * z
+    gl = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z
+    bl = +0.0556434 * x - 0.2040259 * y + 1.0572252 * z
+    return RGB(
+        _clamp_u8(_delinearize(rl) * 255),
+        _clamp_u8(_delinearize(gl) * 255),
+        _clamp_u8(_delinearize(bl) * 255),
+    )
