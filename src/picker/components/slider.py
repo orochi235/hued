@@ -1,5 +1,4 @@
 from __future__ import annotations
-import builtins
 from typing import Callable, Optional
 from src.picker.frame import Frame
 from src.picker.colors import RGB
@@ -27,7 +26,7 @@ def render_slider(
     *,
     label: str,
     value: int,
-    max: int,
+    max_val: int,
     focused: bool = False,
     track_color: RGB = RGB(255, 255, 255),
     get_color: Optional[Callable[[int], RGB]] = None,
@@ -45,9 +44,9 @@ def render_slider(
 
     All out-of-bounds paints are silently clipped by Frame.
     """
-    track_w = builtins.max(4, w - LABEL_W - VALUE_W)
+    track_w = max(4, w - LABEL_W - VALUE_W)
     # Position of the marker (0-indexed within the track)
-    pos = round((value / max) * (track_w - 1)) if max > 0 else 0
+    pos = round((value / max_val) * (track_w - 1)) if max_val > 0 else 0
 
     accent = RGB(0, 255, 255) if focused else RGB(128, 128, 128)
     label_str = (label + " " * LABEL_W)[:LABEL_W]
@@ -57,7 +56,7 @@ def render_slider(
         # --- Row 0: label + track + value ---
         frame.put_str(row, col, label_str, fg=accent)
         for i in range(track_w):
-            cell_val = round((i / (track_w - 1)) * max) if track_w > 1 else value
+            cell_val = round((i / (track_w - 1)) * max_val) if track_w > 1 else value
             bg = get_color(cell_val)
             char = "◆" if (i == pos and focused) else " "
             fg = _contrast(bg) if (i == pos and focused) else bg
@@ -67,7 +66,7 @@ def render_slider(
         # --- Row 1: blank label + plain track + shadow cell ---
         frame.put_str(row + 1, col, " " * LABEL_W)
         for i in range(track_w):
-            cell_val = round((i / (track_w - 1)) * max) if track_w > 1 else value
+            cell_val = round((i / (track_w - 1)) * max_val) if track_w > 1 else value
             bg = get_color(cell_val)
             frame.put_cell(row + 1, col + LABEL_W + i, " ", bg=bg)
         # Shadow cell at track_w (just past end of track)
@@ -83,7 +82,7 @@ def render_slider(
     else:
         # Fallback: 1-row block-bar
         frame.put_str(row, col, label_str, fg=accent)
-        filled = round((value / max) * track_w) if max > 0 else 0
+        filled = round((value / max_val) * track_w) if max_val > 0 else 0
         frame.put_str(row, col + LABEL_W, "█" * filled,
                       fg=track_color if focused else RGB(128, 128, 128))
         frame.put_str(row, col + LABEL_W + filled, "░" * (track_w - filled),
