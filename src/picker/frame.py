@@ -109,3 +109,26 @@ class Frame:
     def flush(self, stream: IO[str] = sys.stdout) -> None:
         stream.write(self.render())
         stream.flush()
+
+    def box(
+        self,
+        row: int,
+        col: int,
+        w: int,
+        h: int,
+        fg: Optional[RGB] = None,
+        bg: Optional[RGB] = None,
+    ) -> None:
+        """Draw a single-line box border. Interior cells are left untouched."""
+        if w < 1 or h < 1:
+            return
+        self.put_cell(row, col, "┌", fg, bg)
+        self.put_cell(row, col + w - 1, "┐", fg, bg)
+        self.put_cell(row + h - 1, col, "└", fg, bg)
+        self.put_cell(row + h - 1, col + w - 1, "┘", fg, bg)
+        for c in range(col + 1, col + w - 1):
+            self.put_cell(row, c, "─", fg, bg)
+            self.put_cell(row + h - 1, c, "─", fg, bg)
+        for r in range(row + 1, row + h - 1):
+            self.put_cell(r, col, "│", fg, bg)
+            self.put_cell(r, col + w - 1, "│", fg, bg)

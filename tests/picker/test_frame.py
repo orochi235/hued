@@ -151,3 +151,37 @@ def test_flush_writes_and_flushes():
     text = buf.getvalue()
     assert text == f.render()
     assert "X" in text
+
+
+def test_box_draws_corners_and_edges():
+    f = Frame(6, 4)
+    f.box(0, 0, w=6, h=4)
+    assert f.get(0, 0).char == "┌"
+    assert f.get(0, 5).char == "┐"
+    assert f.get(3, 0).char == "└"
+    assert f.get(3, 5).char == "┘"
+    for c in range(1, 5):
+        assert f.get(0, c).char == "─"
+        assert f.get(3, c).char == "─"
+    for r in range(1, 3):
+        assert f.get(r, 0).char == "│"
+        assert f.get(r, 5).char == "│"
+
+
+def test_box_does_not_overwrite_interior():
+    f = Frame(5, 3)
+    f.put_cell(1, 2, "X", fg=RGB(10, 20, 30))
+    f.box(0, 0, 5, 3)
+    assert f.get(1, 2) == Cell("X", RGB(10, 20, 30), None)
+
+
+def test_box_fg_propagates_to_border():
+    f = Frame(4, 3)
+    f.box(0, 0, 4, 3, fg=RGB(100, 100, 100))
+    assert f.get(0, 0).fg == RGB(100, 100, 100)
+    assert f.get(2, 0).fg == RGB(100, 100, 100)
+
+
+def test_box_too_small_does_nothing_or_clips_gracefully():
+    f = Frame(5, 5)
+    f.box(0, 0, 1, 1)
