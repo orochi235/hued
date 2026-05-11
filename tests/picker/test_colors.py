@@ -56,3 +56,26 @@ def test_hsl_roundtrip_primaries():
                 RGB(255, 255, 0), RGB(0, 255, 255), RGB(255, 0, 255)):
         back = hsl_to_rgb(rgb_to_hsl(rgb))
         assert back == rgb
+
+
+from src.picker.colors import OKLCH, rgb_to_oklch, oklch_to_rgb
+
+
+def test_rgb_to_oklch_black():
+    o = rgb_to_oklch(RGB(0, 0, 0))
+    assert o.l == 0 and o.c == 0
+
+
+def test_rgb_to_oklch_white():
+    o = rgb_to_oklch(RGB(255, 255, 255))
+    assert o.l == 100 and o.c < 5  # near-zero chroma
+
+
+def test_oklch_roundtrip_tolerance():
+    # Prototype-grade tolerance: each channel within 8 of original
+    # (Due to rounding integers: L(0-100), C(0-400), H(0-360))
+    for rgb in (RGB(64, 128, 192), RGB(200, 50, 100), RGB(20, 200, 80)):
+        back = oklch_to_rgb(rgb_to_oklch(rgb))
+        assert abs(back.r - rgb.r) <= 8
+        assert abs(back.g - rgb.g) <= 8
+        assert abs(back.b - rgb.b) <= 8
