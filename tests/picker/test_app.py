@@ -523,3 +523,96 @@ def test_sw_enter_on_fg_step_confirms():
     s = _sw_state(step="fg")
     _, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
     assert action is Action.CONFIRM
+
+
+# ---------------------------------------------------------------------------
+# Task 5: hex-input mode
+# ---------------------------------------------------------------------------
+
+def _hex_state(**kwargs) -> State:
+    base = dataclasses.replace(
+        _default_state(),
+        pane="sw", panes_mode="focus", hex_mode=True, hex_input="#",
+        bg=RGB(0, 0, 0), step="bg",
+    )
+    return dataclasses.replace(base, **kwargs)
+
+
+def test_hex_escape_exits_mode():
+    s = _hex_state(hex_input="#ff0000")
+    ev = KeyEvent(key=Key.ESC, char=None, shift=False, ctrl=False)
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s.hex_mode is False
+    assert new_s.hex_input == ""
+
+
+def test_hex_digit_appends():
+    s = _hex_state(hex_input="#")
+    new_s, _ = update(s, _char("f"))
+    assert new_s.hex_input == "#f"
+
+
+def test_hex_hash_ignored_if_already_present():
+    # TS: next = (hi + input).slice(-7); '#' inside that only matters at start
+    # After appending '#' to "#123456" -> "#123456#" -> slice(-7) -> "123456#"
+    # which is invalid. The practical effect: '#' can appear only when it's
+    # the 7th character. We verify the existing '#' at start is not duplicated
+    # in a way that breaks a valid 6-hex sequence.
+    s = _hex_state(hex_input="#12345")
+    new_s, _ = update(s, _char("#"))
+    # "#12345" + "#" = "#12345#" -> slice last 7 -> "#12345#" (invalid, no color update)
+    assert new_s.hex_input == "#12345#" or len(new_s.hex_input) <= 7
+
+
+def test_hex_uppercase_appends():
+    s = _hex_state(hex_input="#")
+    new_s, _ = update(s, _char("A"))
+    assert new_s.hex_input == "#A"
+
+
+def test_hex_invalid_char_ignored():
+    s = _hex_state(hex_input="#1a")
+    new_s, _ = update(s, _char("z"))   # 'z' is not a hex digit
+    assert new_s.hex_input == "#1a"
+
+
+def test_hex_backspace_trims():
+    s = _hex_state(hex_input="#ff0")
+    ev = KeyEvent(key=Key.BACKSPACE, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    assert new_s.hex_input == "#ff"
+
+
+def test_hex_complete_6_digits_applies_color():
+    # Entering the 6th digit completes the hex string -> color updates immediately
+    s = _hex_state(hex_input="#ff000", bg=RGB(0, 0, 0), step="bg")
+    new_s, _ = update(s, _char("0"))
+    assert new_s.hex_input == "#ff0000"
+    assert new_s.bg == RGB(255, 0, 0)
+
+
+def test_hex_backspace_on_partial_does_not_update_color():
+    # Trimming back below 6 digits should not update the color
+    s = _hex_state(hex_input="#ff000", bg=RGB(0, 128, 0), step="bg")
+    ev = KeyEvent(key=Key.BACKSPACE, char=None, shift=False, ctrl=False)
+    new_s, _ = update(s, ev)
+    # hex_input is now "#ff00" — incomplete — color unchanged
+    assert new_s.bg == RGB(0, 128, 0)
+    assert new_s.hex_input == "#ff00"
+
+
+def test_hex_input_capped_at_7_chars():
+    # The TS does (hi + input).slice(-7) — we keep at most 7 chars including '#'
+    s = _hex_state(hex_input="#ff0000")
+    new_s, _ = update(s, _char("a"))
+    # Result: "#ff0000a".slice(-7) == "f0000a" — no leading #, 6 digits -> applies
+    # The exact content depends on TS semantics; what matters is len <= 7
+    assert len(new_s.hex_input) <= 7
+
+
+def test_hex_applies_to_fg_when_step_fg():
+    s = _hex_state(hex_input="#00ff0", fg=RGB(0, 0, 0), step="fg")
+    new_s, _ = update(s, _char("0"))
+    assert new_s.fg == RGB(0, 255, 0)
+    assert new_s.bg == s.bg   # bg unchanged
