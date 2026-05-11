@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# hued-pick — launch the interactive color picker (Python implementation)
+#
+# PYTHONPATH resolution order:
+#   1. <prefix>/libexec/hued/  — brew-installed location (picker/ is a subdir)
+#   2. <repo-root>/src/         — source-tree location (picker/ is a subdir of src/)
+#   3. Error.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PREFIX_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+if [[ -d "$PREFIX_DIR/libexec/hued/picker" ]]; then
+  # Installed via brew: libexec/hued/picker/__init__.py exists
+  export PYTHONPATH="$PREFIX_DIR/libexec/hued${PYTHONPATH:+:$PYTHONPATH}"
+elif [[ -d "$PREFIX_DIR/src/picker" ]]; then
+  # Source tree: src/picker/__init__.py exists
+  export PYTHONPATH="$PREFIX_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+else
+  printf 'hued-pick: cannot find picker package\n' >&2
+  printf '  looked for: %s/libexec/hued/picker\n' "$PREFIX_DIR" >&2
+  printf '              %s/src/picker\n' "$PREFIX_DIR" >&2
+  exit 1
+fi
+
+exec python3 -m picker "$@"
