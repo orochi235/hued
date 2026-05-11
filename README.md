@@ -74,9 +74,27 @@ hued set bg <color>           # set background color
 hued set fg <color>           # set foreground color
 hued pack [<dir>] [-o <file>] # export all .hued files under <dir> to JSON
 hued unpack <file> [--force]  # restore .hued files from a JSON export
+hued -i [--live]              # open interactive color picker
 ```
 
 `pack` defaults to `$HOME` if no directory is given. `unpack` skips existing `.hued` files unless `--force` is passed.
+
+## Interactive picker
+
+`hued -i` opens a fullscreen terminal color picker. Use the arrow keys to
+adjust colors by channel, tab between panes, and press Enter to confirm.
+The selected colors are written to the nearest `.hued` file.
+
+Pass `--live` to apply colors immediately as you move sliders:
+
+```zsh
+hued -i --live
+```
+
+**Requirements:** Python 3.9 or later. No Node.js required.
+
+The picker is implemented in stdlib-only Python and ships as part of the hued
+package. Homebrew installations include Python 3.12 as a dependency.
 
 ## Environment variables
 
@@ -105,3 +123,5 @@ No. Calm down, Tucker.
 ## Terminal support
 
 Uses the `\e]11;rgb:RR/GG/BB\a` OSC escape sequence, supported by iTerm2, Terminal.app, Alacritty, Kitty, WezTerm, and most modern terminals.
+
+Node.js is no longer required as of v3.0.0. The picker is now a stdlib-only Python application.
