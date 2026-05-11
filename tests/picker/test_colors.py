@@ -31,3 +31,28 @@ def test_rgb_hex_roundtrip():
             for b in (0, 17, 128, 255):
                 rgb = RGB(r, g, b)
                 assert hex_to_rgb(rgb_to_hex(rgb)) == rgb
+
+
+from src.picker.colors import HSL, rgb_to_hsl, hsl_to_rgb
+
+
+def test_rgb_to_hsl_black():
+    h = rgb_to_hsl(RGB(0, 0, 0))
+    assert h.l == 0 and h.s == 0
+
+
+def test_rgb_to_hsl_white():
+    h = rgb_to_hsl(RGB(255, 255, 255))
+    assert h.l == 100 and h.s == 0
+
+
+def test_rgb_to_hsl_pure_red():
+    h = rgb_to_hsl(RGB(255, 0, 0))
+    assert round(h.h) == 0 and round(h.s) == 100 and round(h.l) == 50
+
+
+def test_hsl_roundtrip_primaries():
+    for rgb in (RGB(255, 0, 0), RGB(0, 255, 0), RGB(0, 0, 255),
+                RGB(255, 255, 0), RGB(0, 255, 255), RGB(255, 0, 255)):
+        back = hsl_to_rgb(rgb_to_hsl(rgb))
+        assert back == rgb
