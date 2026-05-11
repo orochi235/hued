@@ -44,6 +44,61 @@ HUED="$REPO_ROOT/bin/hued"
   [[ "$output" =~ \-i ]]
 }
 
+@test "bin/hued -i: missing foreground in .hued does not abort before invoking picker" {
+  # Regression: grep -m1 '^foreground=' returns 1 when the key is absent;
+  # under `set -euo pipefail`, this once killed the script before the picker ran.
+  tmpdir=$(mktemp -d)
+  printf "background=#112233\n" > "$tmpdir/.hued"
+  mkdir -p "$tmpdir/stubbin"
+  cat > "$tmpdir/stubbin/hued-pick" <<'STUB'
+#!/usr/bin/env bash
+echo "PICKER_CALLED args=$*" >&2
+exit 1
+STUB
+  chmod +x "$tmpdir/stubbin/hued-pick"
+  # Run hued from the stub dir so $(dirname "$0")/hued-pick resolves to the stub
+  cp "$HUED" "$tmpdir/stubbin/hued"
+  run bash -c "cd '$tmpdir' && '$tmpdir/stubbin/hued' -i </dev/null 2>&1"
+  rm -rf "$tmpdir"
+  [[ "$output" =~ PICKER_CALLED ]]
+  [[ "$output" =~ --bg\ \#112233 ]]
+  [[ ! "$output" =~ --fg ]]
+}
+
+@test "bin/hued -i: missing background in .hued does not abort before invoking picker" {
+  tmpdir=$(mktemp -d)
+  printf "foreground=#aabbcc\n" > "$tmpdir/.hued"
+  mkdir -p "$tmpdir/stubbin"
+  cat > "$tmpdir/stubbin/hued-pick" <<'STUB'
+#!/usr/bin/env bash
+echo "PICKER_CALLED args=$*" >&2
+exit 1
+STUB
+  chmod +x "$tmpdir/stubbin/hued-pick"
+  cp "$HUED" "$tmpdir/stubbin/hued"
+  run bash -c "cd '$tmpdir' && '$tmpdir/stubbin/hued' -i </dev/null 2>&1"
+  rm -rf "$tmpdir"
+  [[ "$output" =~ PICKER_CALLED ]]
+  [[ "$output" =~ --fg\ \#aabbcc ]]
+  [[ ! "$output" =~ --bg ]]
+}
+
+@test "bin/hued -i: no .hued at all does not abort before invoking picker" {
+  tmpdir=$(mktemp -d)
+  mkdir -p "$tmpdir/stubbin"
+  cat > "$tmpdir/stubbin/hued-pick" <<'STUB'
+#!/usr/bin/env bash
+echo "PICKER_CALLED args=$*" >&2
+exit 1
+STUB
+  chmod +x "$tmpdir/stubbin/hued-pick"
+  cp "$HUED" "$tmpdir/stubbin/hued"
+  # cd to a deep tmp path so _hued_find walks up without finding a .hued
+  run bash -c "cd '$tmpdir' && HOME='$tmpdir' '$tmpdir/stubbin/hued' -i </dev/null 2>&1"
+  rm -rf "$tmpdir"
+  [[ "$output" =~ PICKER_CALLED ]]
+}
+
 @test "bin/hued-pick fails gracefully when python3 is absent" {
   # Temporarily shadow python3 with a no-op that exits 127.
   # We verify the shim itself doesn't crash before exec.

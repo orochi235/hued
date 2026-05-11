@@ -155,10 +155,10 @@ PYEOF
     _current_bg=""
     _current_fg=""
     if _file=$(_hued_find 2>/dev/null); then
-      _raw_bg=$(grep -m1 '^background=' "$_file" | cut -d= -f2 | tr -d '[:space:]')
-      _raw_fg=$(grep -m1 '^foreground=' "$_file" | cut -d= -f2 | tr -d '[:space:]')
-      [[ -n "$_raw_bg" ]] && _current_bg=$(_hued_normalize_color "$_raw_bg")
-      [[ -n "$_raw_fg" ]] && _current_fg=$(_hued_normalize_color "$_raw_fg")
+      _raw_bg=$({ grep -m1 '^background=' "$_file" || true; } | cut -d= -f2 | tr -d '[:space:]')
+      _raw_fg=$({ grep -m1 '^foreground=' "$_file" || true; } | cut -d= -f2 | tr -d '[:space:]')
+      [[ -z "$_raw_bg" ]] || _current_bg=$(_hued_normalize_color "$_raw_bg")
+      [[ -z "$_raw_fg" ]] || _current_fg=$(_hued_normalize_color "$_raw_fg")
     fi
     _live_flag=""
     for _arg in "$@"; do [[ "$_arg" == "--live" ]] && _live_flag="--live" && break; done
