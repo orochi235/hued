@@ -1,6 +1,12 @@
 from __future__ import annotations
 import sys
-from typing import IO
+import os
+import termios
+import tty
+import select
+import shutil
+from contextlib import contextmanager
+from typing import IO, Iterator
 from src.picker.keys import Key, KeyEvent
 
 
@@ -120,3 +126,43 @@ def exit_alt_screen() -> str:
 
 def clear_screen() -> str:
     return "\x1b[2J"
+
+
+@contextmanager
+def raw_mode(fd: int = 0) -> Iterator[None]:
+    """Put fd (default stdin) into cbreak mode for the duration of the with-block."""
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        yield
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def read_key(fd: int = 0, timeout: float = 0.05) -> "KeyEvent":
+    """Read one key from fd (which must be in raw/cbreak mode).
+
+    Blocks for at least one byte, then drains any continuation bytes that
+    arrive within `timeout` seconds — this is how multi-byte escape
+    sequences (arrow keys, modified keys) get bundled into a single event.
+    """
+    first = os.read(fd, 1)
+    if not first:
+        return KeyEvent(Key.UNKNOWN, None, False, False)
+    buf = bytearray(first)
+    # Drain follow-up bytes (escape sequences arrive together but not atomically)
+    while True:
+        ready, _, _ = select.select([fd], [], [], timeout)
+        if not ready:
+            break
+        more = os.read(fd, 16)
+        if not more:
+            break
+        buf.extend(more)
+    return parse_key(bytes(buf))
+
+
+def get_size() -> tuple[int, int]:
+    """Return (columns, rows) for the controlling terminal."""
+    s = shutil.get_terminal_size((80, 24))
+    return s.columns, s.lines
