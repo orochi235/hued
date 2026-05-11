@@ -824,3 +824,39 @@ def test_render_small_terminal_does_not_crash():
     f = render(s, cols=40, rows=12)
     assert f.width == 40
     assert f.height == 12
+
+
+# ---------------------------------------------------------------------------
+# run(): Ctrl-C handling
+# ---------------------------------------------------------------------------
+
+def test_run_handles_keyboard_interrupt_as_cancel():
+    # cbreak mode leaves ISIG enabled, so Ctrl-C arrives as a SIGINT that
+    # Python turns into KeyboardInterrupt from inside os.read(). Verify
+    # run() catches it and returns the CANCEL exit code (1) cleanly instead
+    # of letting the traceback propagate.
+    import io
+    import sys
+    from contextlib import contextmanager
+    from unittest.mock import patch
+    from src.picker.app import run
+    from src.picker.colors import RGB
+    import src.picker.term as t
+
+    @contextmanager
+    def fake_raw_mode(fd=0):
+        yield
+
+    def fake_read_key(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    captured = io.StringIO()
+    with patch.object(t, "raw_mode", fake_raw_mode), \
+         patch.object(t, "read_key", fake_read_key), \
+         patch.object(t, "install_resize_handler", lambda cb: None), \
+         patch.object(t, "uninstall_resize_handler", lambda: None), \
+         patch.object(t, "get_size", lambda: (80, 24)), \
+         patch.object(sys, "stdout", captured):
+        rc = run(RGB(0, 0, 0), RGB(255, 255, 255), None, live=False)
+
+    assert rc == 1

@@ -836,7 +836,14 @@ def run(
             render(state, cols, rows).flush()
 
             while action is Action.CONTINUE:
-                ev = t.read_key()
+                try:
+                    ev = t.read_key()
+                except KeyboardInterrupt:
+                    # cbreak mode leaves ISIG enabled, so Ctrl-C arrives as SIGINT
+                    # rather than as the \x03 byte the in-app handler expects.
+                    # Treat it the same as the in-app Ctrl-C handler: cancel.
+                    action = Action.CANCEL
+                    break
 
                 prev_bg = state.bg
                 prev_fg = state.fg
