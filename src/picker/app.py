@@ -466,3 +466,316 @@ def update(
 
     # All other keys in focus mode: no-op
     return state, Action.CONTINUE
+
+
+from src.picker.frame import Frame
+from src.picker.term import ansi_truecolor_fg
+from src.picker.colors import nearest_name
+
+# Color constants for pane borders
+_GRAY   = RGB(128, 128, 128)
+_CYAN   = RGB(0, 255, 255)
+_YELLOW = RGB(200, 200, 0)
+
+
+def _border_color(state: State, pane: str) -> RGB:
+    """Return the border color for `pane` given the current state."""
+    if state.pane != pane:
+        return _GRAY
+    return _CYAN if state.panes_mode == "focus" else _YELLOW
+
+
+def _build_channels(model: str, rgb: RGB) -> list[dict]:
+    """Build the list of channel descriptor dicts for `model` and current `rgb`.
+
+    Each dict has: label (str), value (int), max (int), get_color (callable).
+    Mirrors the rgbChannels/hslChannels/oklchChannels/labChannels arrays in App.tsx.
+    """
+    from src.picker.colors import (
+        rgb_to_hsl, hsl_to_rgb, HSL,
+        rgb_to_oklch, oklch_to_rgb, OKLCH,
+        rgb_to_lab, lab_to_rgb, Lab,
+        rgb_to_hex,
+    )
+
+    if model == "rgb":
+        return [
+            {
+                "label": "R", "value": rgb.r, "max": 255,
+                "get_color": lambda v: RGB(v, rgb.g, rgb.b),
+            },
+            {
+                "label": "G", "value": rgb.g, "max": 255,
+                "get_color": lambda v: RGB(rgb.r, v, rgb.b),
+            },
+            {
+                "label": "B", "value": rgb.b, "max": 255,
+                "get_color": lambda v: RGB(rgb.r, rgb.g, v),
+            },
+        ]
+
+    if model == "hsl":
+        hsl = rgb_to_hsl(rgb)
+        return [
+            {
+                "label": "H", "value": round(hsl.h), "max": 360,
+                "get_color": lambda v: hsl_to_rgb(HSL(float(v), hsl.s, hsl.l)),
+            },
+            {
+                "label": "S", "value": round(hsl.s), "max": 100,
+                "get_color": lambda v: hsl_to_rgb(HSL(hsl.h, float(v), hsl.l)),
+            },
+            {
+                "label": "L", "value": round(hsl.l), "max": 100,
+                "get_color": lambda v: hsl_to_rgb(HSL(hsl.h, hsl.s, float(v))),
+            },
+        ]
+
+    if model == "oklch":
+        oklch = rgb_to_oklch(rgb)
+        return [
+            {
+                "label": "L", "value": oklch.l, "max": 100,
+                "get_color": lambda v: oklch_to_rgb(OKLCH(v, oklch.c, oklch.h)),
+            },
+            {
+                "label": "C", "value": oklch.c, "max": 400,
+                "get_color": lambda v: oklch_to_rgb(OKLCH(oklch.l, v, oklch.h)),
+            },
+            {
+                "label": "H", "value": oklch.h, "max": 360,
+                "get_color": lambda v: oklch_to_rgb(OKLCH(oklch.l, oklch.c, v)),
+            },
+        ]
+
+    if model == "lab":
+        lab = rgb_to_lab(rgb)
+        return [
+            {
+                "label": "L", "value": lab.l, "max": 100,
+                "get_color": lambda v: lab_to_rgb(Lab(v, lab.a, lab.b)),
+            },
+            {
+                "label": "a", "value": lab.a + 128, "max": 255,
+                "get_color": lambda v: lab_to_rgb(Lab(lab.l, v - 128, lab.b)),
+            },
+            {
+                "label": "b", "value": lab.b + 128, "max": 255,
+                "get_color": lambda v: lab_to_rgb(Lab(lab.l, lab.a, v - 128)),
+            },
+        ]
+
+    return []
+
+
+def render(state: State, cols: int, rows: int) -> Frame:
+    """Pure render function. Returns a fully-painted Frame.
+
+    Layout:
+      Row 0:              title bar
+      Rows 1 .. half_h:   NW pane (left) and NE pane (right)
+      Rows half_h+1..-2:  SW pane (left) and SE pane (right)
+      Row rows-1:         footer
+    """
+    from src.picker.components.slider import render_slider
+    from src.picker.components.settings import render_settings
+    from src.picker.components.preview import render_terminal_preview
+    from src.picker.components.swatch_browser import render_swatch_browser
+    from src.picker.components.slicer import render_color_slicer
+    from src.picker.colors import rgb_to_hex
+
+    frame = Frame(cols, rows)
+
+    half_w = cols // 2
+    half_h = max(4, (rows - 2) // 2)   # rows-2: 1 for title, 1 for footer
+
+    right_w = cols - half_w
+
+    # -------------------------------------------------------------------
+    # Row 0: title bar
+    # -------------------------------------------------------------------
+    frame.fill(0, 0, cols, 1, " ")
+    c = 1
+    # "hued " in cyan
+    frame.put_str(0, c, "hued ", fg=_CYAN)
+    c += 5
+    # "background" or "foreground" step indicators
+    frame.put_str(0, c, "background",
+                  fg=_CYAN if state.step == "bg" else _GRAY)
+    c += 10
+    frame.put_str(0, c, " → ", fg=_GRAY)
+    c += 3
+    frame.put_str(0, c, "foreground",
+                  fg=_CYAN if state.step == "fg" else _GRAY)
+    c += 10
+    # [nav] indicator
+    if state.panes_mode == "nav":
+        frame.put_str(0, c, "  [nav]", fg=_GRAY)
+        c += 7
+    # Search area (right-aligned)
+    search_label = "/ "
+    filter_text = state.filter
+    cursor_char = "█" if state.search_focused else ""
+    search_str = search_label + filter_text + cursor_char
+    search_col = cols - len(search_str) - 1
+    if search_col > c:
+        frame.put_str(0, search_col, "/", fg=_GRAY)
+        frame.put_str(0, search_col + 2, filter_text,
+                      fg=_CYAN if state.search_focused else (
+                          RGB(255, 255, 255) if filter_text else _GRAY
+                      ))
+        if state.search_focused:
+            frame.put_str(0, search_col + 2 + len(filter_text), "█", fg=_CYAN)
+
+    # -------------------------------------------------------------------
+    # NW pane: settings + terminal preview
+    # -------------------------------------------------------------------
+    nw_row = 1
+    nw_col = 0
+    nw_w = half_w
+    nw_h = half_h
+    frame.box(nw_row, nw_col, nw_w, nw_h, fg=_border_color(state, "nw"))
+
+    settings_w = max(4, nw_w // 2)
+    render_settings(
+        frame,
+        row=nw_row + 1,
+        col=nw_col + 1,
+        w=settings_w - 2,
+        h=nw_h - 2,
+        model=state.model,
+        step=state.step,
+        live=state.live,
+        current_hex=rgb_to_hex(state.current),
+        nearest_name=nearest_name(state.current, NAMED_COLORS),
+    )
+    render_terminal_preview(
+        frame,
+        row=nw_row + 1,
+        col=nw_col + settings_w,
+        w=nw_w - settings_w - 1,
+        h=nw_h - 2,
+        bg_hex=rgb_to_hex(state.bg),
+        fg_hex=rgb_to_hex(state.fg),
+    )
+
+    # -------------------------------------------------------------------
+    # SW pane: sliders or hex input
+    # -------------------------------------------------------------------
+    sw_row = 1 + half_h
+    sw_col = 0
+    sw_w = half_w
+    sw_h = rows - 2 - half_h   # fill remaining rows above footer
+    frame.box(sw_row, sw_col, sw_w, sw_h, fg=_border_color(state, "sw"))
+
+    slider_w = sw_w - 4   # border(2) + paddingX(2)
+    if not state.hex_mode:
+        # Compute channel definitions for the current model
+        current_rgb = state.current
+        _channels = _build_channels(state.model, current_rgb)
+        n_channels = len(_channels)
+        for idx, ch_def in enumerate(_channels):
+            is_focused_slider = (
+                state.pane == "sw"
+                and state.panes_mode == "focus"
+                and state.focused_channel == idx
+            )
+            display_value = (
+                state.acc_value
+                if (is_focused_slider and state.acc_value is not None)
+                else ch_def["value"]
+            )
+            render_slider(
+                frame,
+                row=sw_row + 1 + idx * 3,
+                col=sw_col + 2,
+                w=slider_w,
+                h=3,
+                label=ch_def["label"],
+                value=display_value,
+                max_val=ch_def["max"],
+                focused=is_focused_slider,
+                get_color=ch_def["get_color"],
+            )
+    else:
+        # Hex input mode
+        frame.fill(sw_row + 1, sw_col + 1, sw_w - 2, 1, " ")
+        hex_text = state.hex_input or rgb_to_hex(state.current)
+        bare = hex_text.lstrip("#")
+        frame.put_str(sw_row + 2, sw_col + 2, "# ", fg=_GRAY)
+        frame.put_str(sw_row + 2, sw_col + 4, bare, fg=_CYAN)
+        if state.pane == "sw" and state.panes_mode == "focus":
+            frame.put_str(sw_row + 2, sw_col + 4 + len(bare), "█", fg=_CYAN)
+
+    # -------------------------------------------------------------------
+    # NE pane: color slicer
+    # -------------------------------------------------------------------
+    ne_row = 1
+    ne_col = half_w
+    ne_w = right_w
+    ne_h = half_h
+    frame.box(ne_row, ne_col, ne_w, ne_h, fg=_border_color(state, "ne"))
+    slicer_w = ne_w - 2
+    slicer_h = ne_h - 2
+    if slicer_w >= 4 and slicer_h >= 2:
+        render_color_slicer(
+            frame,
+            row=ne_row + 1,
+            col=ne_col + 1,
+            w=slicer_w,
+            h=slicer_h,
+            model=state.model,
+            current=state.current,
+            view_idx=state.view_idx,
+        )
+
+    # -------------------------------------------------------------------
+    # SE pane: swatch browser
+    # -------------------------------------------------------------------
+    se_row = 1 + half_h
+    se_col = half_w
+    se_w = right_w
+    se_h = rows - 2 - half_h
+    frame.box(se_row, se_col, se_w, se_h, fg=_border_color(state, "se"))
+    sb_w = se_w - 2
+    sb_h = se_h - 2
+    if sb_w >= 4 and sb_h >= 2:
+        render_swatch_browser(
+            frame,
+            row=se_row + 1,
+            col=se_col + 1,
+            w=sb_w,
+            h=sb_h,
+            colors=NAMED_COLORS,
+            filter_str=state.filter,
+            sort_mode=state.sort_mode,
+            focused_idx=state.swatch_idx,
+        )
+
+    # -------------------------------------------------------------------
+    # Footer: keymap hints
+    # -------------------------------------------------------------------
+    frame.fill(rows - 1, 0, cols, 1, " ")
+    hints = [
+        ("tab", " pane"),
+        ("↑↓", " ch"),
+        ("←→", " adj"),
+        ("enter", f" {'next →' if state.step == 'bg' else 'confirm'}"),
+        ("/", " search"),
+        ("#", " hex"),
+        ("`", " mdl"),
+        ("\\", " srt"),
+        ("[/]", " view"),
+        ("esc", " nav"),
+        ("^C", " cancel"),
+    ]
+    fc = 1
+    for key_text, desc_text in hints:
+        if fc + len(key_text) + len(desc_text) >= cols - 1:
+            break
+        frame.put_str(rows - 1, fc, key_text, fg=_GRAY)
+        fc += len(key_text)
+        frame.put_str(rows - 1, fc, desc_text)
+        fc += len(desc_text)
+
+    return frame

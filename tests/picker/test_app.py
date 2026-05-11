@@ -728,3 +728,99 @@ def test_se_enter_on_fg_step_confirms():
     with _mock.patch("src.picker.app.NAMED_COLORS", _TEST_COLORS):
         _, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
     assert action is Action.CONFIRM
+
+
+# ---------------------------------------------------------------------------
+# Task 7: render() smoke tests
+# ---------------------------------------------------------------------------
+
+from src.picker.app import render
+from src.picker.frame import Frame
+
+
+def test_render_returns_frame():
+    s = _default_state()
+    f = render(s, cols=80, rows=24)
+    assert isinstance(f, Frame)
+    assert f.width == 80
+    assert f.height == 24
+
+
+def test_render_title_bar_has_hued():
+    s = _default_state()
+    f = render(s, cols=80, rows=24)
+    row0 = "".join(f.get(0, c).char for c in range(80))
+    assert "hued" in row0
+
+
+def test_render_title_bar_shows_bg_step():
+    s = dataclasses.replace(_default_state(), step="bg")
+    f = render(s, cols=80, rows=24)
+    row0 = "".join(f.get(0, c).char for c in range(80))
+    assert "background" in row0
+
+
+def test_render_title_bar_shows_fg_step():
+    s = dataclasses.replace(_default_state(), step="fg")
+    f = render(s, cols=80, rows=24)
+    row0 = "".join(f.get(0, c).char for c in range(80))
+    assert "foreground" in row0
+
+
+def test_render_title_shows_nav_indicator():
+    s = dataclasses.replace(_default_state(), panes_mode="nav")
+    f = render(s, cols=80, rows=24)
+    row0 = "".join(f.get(0, c).char for c in range(80))
+    assert "[nav]" in row0
+
+
+def test_render_footer_has_keymap_hints():
+    s = _default_state()
+    f = render(s, cols=80, rows=24)
+    last_row = "".join(f.get(23, c).char for c in range(80))
+    assert "tab" in last_row
+    assert "esc" in last_row
+
+
+def test_render_nw_pane_has_border():
+    s = _default_state()
+    f = render(s, cols=80, rows=24)
+    # NW pane top-left corner should be a box-drawing character
+    nw_top_row = 1   # title bar is row 0; NW pane starts at row 1
+    nw_left_col = 0
+    assert f.get(nw_top_row, nw_left_col).char in ("┌", "│", "─", "└", "┐", "┘")
+
+
+def test_render_focused_pane_border_is_cyan():
+    s = dataclasses.replace(_default_state(), pane="sw", panes_mode="focus")
+    f = render(s, cols=80, rows=24)
+    # The SW pane border corner should be cyan
+    half_h = max(4, (24 - 2) // 2)
+    sw_top_row = 1 + half_h   # below NW
+    sw_top_left = 0
+    corner = f.get(sw_top_row, sw_top_left)
+    assert corner.fg == RGB(0, 255, 255)
+
+
+def test_render_nav_focused_pane_border_is_yellow():
+    s = dataclasses.replace(_default_state(), pane="sw", panes_mode="nav")
+    f = render(s, cols=80, rows=24)
+    half_h = max(4, (24 - 2) // 2)
+    sw_top_row = 1 + half_h
+    corner = f.get(sw_top_row, 0)
+    assert corner.fg == RGB(200, 200, 0)
+
+
+def test_render_unfocused_pane_border_is_gray():
+    s = dataclasses.replace(_default_state(), pane="sw")
+    f = render(s, cols=80, rows=24)
+    # NW pane is not focused; its border should be gray
+    corner = f.get(1, 0)
+    assert corner.fg == RGB(128, 128, 128)
+
+
+def test_render_small_terminal_does_not_crash():
+    s = _default_state()
+    f = render(s, cols=40, rows=12)
+    assert f.width == 40
+    assert f.height == 12
