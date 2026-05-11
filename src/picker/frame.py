@@ -26,3 +26,30 @@ class Frame:
 
     def get(self, row: int, col: int) -> Cell:
         return self._cells[row][col]
+
+    def put_cell(
+        self,
+        row: int,
+        col: int,
+        char: str,
+        fg: Optional[RGB] = None,
+        bg: Optional[RGB] = None,
+    ) -> None:
+        if not (0 <= row < self.height and 0 <= col < self.width):
+            return
+        self._cells[row][col] = Cell(char, fg, bg)
+
+    def put_str(
+        self,
+        row: int,
+        col: int,
+        s: str,
+        fg: Optional[RGB] = None,
+        bg: Optional[RGB] = None,
+    ) -> None:
+        if not (0 <= row < self.height):
+            return
+        for i, ch in enumerate(s):
+            c = col + i
+            if 0 <= c < self.width:
+                self._cells[row][c] = Cell(ch, fg, bg)

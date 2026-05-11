@@ -30,3 +30,44 @@ def test_frame_starts_empty():
     for r in range(2):
         for c in range(4):
             assert f.get(r, c) == Cell()
+
+
+def test_put_cell_sets_char_and_colors():
+    f = Frame(5, 2)
+    f.put_cell(0, 1, "x", fg=RGB(255, 0, 0), bg=RGB(0, 0, 0))
+    assert f.get(0, 1) == Cell("x", RGB(255, 0, 0), RGB(0, 0, 0))
+
+
+def test_put_cell_out_of_bounds_is_silent():
+    f = Frame(3, 3)
+    f.put_cell(-1, 0, "x")
+    f.put_cell(0, -1, "x")
+    f.put_cell(3, 0, "x")
+    f.put_cell(0, 3, "x")
+    for r in range(3):
+        for c in range(3):
+            assert f.get(r, c) == Cell()
+
+
+def test_put_str_fills_consecutive_cells():
+    f = Frame(10, 2)
+    f.put_str(0, 2, "hi", fg=RGB(128, 128, 128))
+    assert f.get(0, 2) == Cell("h", RGB(128, 128, 128), None)
+    assert f.get(0, 3) == Cell("i", RGB(128, 128, 128), None)
+    assert f.get(0, 1) == Cell()
+    assert f.get(0, 4) == Cell()
+
+
+def test_put_str_clips_at_right_edge():
+    f = Frame(5, 1)
+    f.put_str(0, 3, "abcde")
+    assert f.get(0, 3).char == "a"
+    assert f.get(0, 4).char == "b"
+
+
+def test_put_str_negative_col_clips_left():
+    f = Frame(5, 1)
+    f.put_str(0, -2, "abcde")
+    assert f.get(0, 0).char == "c"
+    assert f.get(0, 1).char == "d"
+    assert f.get(0, 2).char == "e"
