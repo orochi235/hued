@@ -41,28 +41,39 @@ _hued_resolve() {
 }
 
 _hued_apply() {
+  local bg="" fg="" hex
+
   local dir="$PWD"
   while [[ "$dir" != / && -n "$dir" ]]; do
     if [[ -f "$dir/.hued" ]]; then
-      local bg fg hex
-
       bg=$(grep -m1 '^background=' "$dir/.hued" | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
       fg=$(grep -m1 '^foreground=' "$dir/.hued" | cut -d= -f2 | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
-
-      if [[ -n "$bg" ]]; then
-        hex="$(_hued_resolve "$bg")"
-        [[ -n "$hex" ]] && printf "\e]11;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
-      fi
-
-      if [[ -n "$fg" ]]; then
-        hex="$(_hued_resolve "$fg")"
-        [[ -n "$hex" ]] && printf "\e]10;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
-      fi
-
-      [[ -n "$bg" || -n "$fg" ]] && return
+      [[ -n "$bg" || -n "$fg" ]] && break
     fi
     dir="${dir%/*}"
   done
-  printf "\e]111;\a"  # reset background
-  printf "\e]110;\a"  # reset foreground
+
+  if [[ -n "${HUED_BACKGROUND:-}" ]]; then
+    bg=$(printf '%s' "$HUED_BACKGROUND" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  fi
+  if [[ -n "${HUED_FOREGROUND:-}" ]]; then
+    fg=$(printf '%s' "$HUED_FOREGROUND" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')
+  fi
+
+  [[ "$bg" == "none" ]] && bg=""
+  [[ "$fg" == "none" ]] && fg=""
+
+  if [[ -n "$bg" ]]; then
+    hex="$(_hued_resolve "$bg")"
+    [[ -n "$hex" ]] && printf "\e]11;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
+  else
+    printf "\e]111;\a"
+  fi
+
+  if [[ -n "$fg" ]]; then
+    hex="$(_hued_resolve "$fg")"
+    [[ -n "$hex" ]] && printf "\e]10;rgb:%s/%s/%s\a" "${hex:0:2}" "${hex:2:2}" "${hex:4:2}"
+  else
+    printf "\e]110;\a"
+  fi
 }
