@@ -3,6 +3,12 @@ from dataclasses import dataclass
 from typing import Optional
 
 from src.picker.colors import RGB
+from src.picker.term import (
+    ansi_truecolor_bg,
+    ansi_truecolor_fg,
+    ansi_reset,
+    cursor_to,
+)
 
 
 @dataclass(frozen=True)
@@ -71,3 +77,30 @@ class Frame:
                 if not (0 <= c < self.width):
                     continue
                 self._cells[r][c] = Cell(char, fg, bg)
+
+    def render(self) -> str:
+        """Build the full frame as one ANSI string. Caller writes + flushes."""
+        parts: list[str] = []
+        for r in range(self.height):
+            parts.append(cursor_to(r + 1, 1))
+            parts.append(ansi_reset())
+            last_fg: Optional[RGB] = None
+            last_bg: Optional[RGB] = None
+            for c in range(self.width):
+                cell = self._cells[r][c]
+                if cell.fg != last_fg:
+                    parts.append(
+                        ansi_truecolor_fg(cell.fg.r, cell.fg.g, cell.fg.b)
+                        if cell.fg is not None
+                        else ansi_reset()
+                    )
+                    last_fg = cell.fg
+                    if cell.fg is None:
+                        last_bg = None
+                if cell.bg != last_bg:
+                    if cell.bg is not None:
+                        parts.append(ansi_truecolor_bg(cell.bg.r, cell.bg.g, cell.bg.b))
+                    last_bg = cell.bg
+                parts.append(cell.char)
+        parts.append(ansi_reset())
+        return "".join(parts)

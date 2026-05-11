@@ -93,3 +93,48 @@ def test_fill_zero_size_is_noop():
     f = Frame(3, 3)
     f.fill(0, 0, w=0, h=0, char="x")
     assert f.get(0, 0) == Cell()
+
+
+def test_render_empty_frame_has_cursor_per_row_and_resets():
+    f = Frame(3, 2)
+    out = f.render()
+    assert "\x1b[1;1H" in out
+    assert "\x1b[2;1H" in out
+    assert out.endswith("\x1b[0m")
+
+
+def test_render_default_cells_emit_only_spaces():
+    f = Frame(3, 1)
+    out = f.render()
+    assert "\x1b[48;2;" not in out
+    assert "\x1b[38;2;" not in out
+    assert out.count(" ") == 3
+
+
+def test_render_painted_cell_emits_truecolor_codes():
+    f = Frame(2, 1)
+    f.put_cell(0, 0, "X", fg=RGB(255, 0, 0), bg=RGB(0, 0, 255))
+    out = f.render()
+    assert "\x1b[38;2;255;0;0m" in out
+    assert "\x1b[48;2;0;0;255m" in out
+    assert "X" in out
+
+
+def test_render_suppresses_repeated_color_within_row():
+    f = Frame(3, 1)
+    red = RGB(255, 0, 0)
+    f.put_cell(0, 0, "a", fg=red)
+    f.put_cell(0, 1, "b", fg=red)
+    f.put_cell(0, 2, "c", fg=red)
+    out = f.render()
+    assert out.count("\x1b[38;2;255;0;0m") == 1
+
+
+def test_render_resets_between_rows():
+    f = Frame(2, 2)
+    red = RGB(255, 0, 0)
+    f.put_cell(0, 0, "a", fg=red)
+    out = f.render()
+    idx = out.index("\x1b[2;1H")
+    second_row = out[idx:]
+    assert "\x1b[0m" in out[:idx] or "\x1b[0m" in second_row[:20]
