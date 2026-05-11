@@ -2,7 +2,7 @@ import math
 from src.picker.frame import Frame
 from src.picker.colors import RGB, rgb_to_hsl, rgb_to_oklch, rgb_to_lab
 from src.picker.components.slicer import (
-    render_color_slicer, VIEWS, _clear_slicer_cache,
+    render_color_slicer, VIEWS, _clear_slicer_cache, _SLICER_CACHE,
 )
 
 # Use a small frame for speed
@@ -121,3 +121,62 @@ def test_row_col_offset():
     assert f.get(0, 0).char == " "
     # Grid starts at row+1, so row 3, col 5 should be painted with ▀
     assert f.get(3, 5).char == "▀"
+
+
+def test_cache_populated_after_first_render():
+    _clear_slicer_cache()
+    f = _frame()
+    render_color_slicer(f, row=0, col=0, w=_W, h=_H,
+                        model="rgb", current=RGB(10, 20, 30), view_idx=0)
+    assert len(_SLICER_CACHE) == 1
+
+
+def test_second_render_same_args_hits_cache():
+    """The pixel computation must run exactly once for two identical renders."""
+    _clear_slicer_cache()
+
+    call_count = [0]
+    _orig_compute = __import__(
+        "src.picker.components.slicer", fromlist=["_compute_pixel_grid"]
+    )._compute_pixel_grid
+
+    # Patch _compute_pixel_grid with a counting wrapper
+    import src.picker.components.slicer as slicer_mod
+
+    def counting_compute(view, pw, ph):
+        call_count[0] += 1
+        return _orig_compute(view, pw, ph)
+
+    slicer_mod._compute_pixel_grid = counting_compute
+    try:
+        f = _frame()
+        render_color_slicer(f, row=0, col=0, w=_W, h=_H,
+                            model="rgb", current=RGB(50, 100, 150), view_idx=1)
+        render_color_slicer(f, row=0, col=0, w=_W, h=_H,
+                            model="rgb", current=RGB(50, 100, 150), view_idx=1)
+        assert call_count[0] == 1, (
+            f"_compute_pixel_grid called {call_count[0]} times; expected 1 (cached on second call)"
+        )
+    finally:
+        slicer_mod._compute_pixel_grid = _orig_compute
+
+
+def test_different_args_miss_cache():
+    _clear_slicer_cache()
+    f = _frame()
+    render_color_slicer(f, row=0, col=0, w=_W, h=_H,
+                        model="rgb", current=RGB(10, 20, 30), view_idx=0)
+    render_color_slicer(f, row=0, col=0, w=_W, h=_H,
+                        model="rgb", current=RGB(40, 50, 60), view_idx=0)
+    # Different current colors -> two distinct cache entries
+    assert len(_SLICER_CACHE) == 2
+
+
+def test_cache_is_cleared_by_helper():
+    _clear_slicer_cache()
+    f = _frame()
+    render_color_slicer(f, row=0, col=0, w=_W, h=_H,
+                        model="hsl", current=RGB(1, 2, 3), view_idx=0)
+    assert len(_SLICER_CACHE) >= 1
+    _clear_slicer_cache()
+    assert len(_SLICER_CACHE) == 0

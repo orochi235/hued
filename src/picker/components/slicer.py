@@ -264,9 +264,13 @@ def render_color_slicer(
     grid_term_rows = max(1, h - 2)  # -1 for label row, -1 for top margin row
     pixel_h = grid_term_rows * 2    # two logical pixels per terminal row
 
-    # Compute the pixel grid (memoized in Task 7; bare computation here)
-    pixel_grid = _compute_pixel_grid(view, pixel_w, pixel_h)
-    pairs = _pair_rows(pixel_grid)
+    # Memoized pixel grid computation.
+    # Key encodes everything that changes the visual output of the grid.
+    cache_key = (model, rgb_to_hex(current), view_idx % len(view_list), pixel_w, pixel_h)
+    if cache_key not in _SLICER_CACHE:
+        pixel_grid = _compute_pixel_grid(view, pixel_w, pixel_h)
+        _SLICER_CACHE[cache_key] = _pair_rows(pixel_grid)
+    pairs = _SLICER_CACHE[cache_key]
 
     # Cursor position in pixel coordinates
     cxn, cyn = view.cursor
