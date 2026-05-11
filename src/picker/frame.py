@@ -53,3 +53,21 @@ class Frame:
             c = col + i
             if 0 <= c < self.width:
                 self._cells[row][c] = Cell(ch, fg, bg)
+
+    def fill(
+        self,
+        row: int,
+        col: int,
+        w: int,
+        h: int,
+        char: str = " ",
+        fg: Optional[RGB] = None,
+        bg: Optional[RGB] = None,
+    ) -> None:
+        for r in range(row, row + h):
+            if not (0 <= r < self.height):
+                continue
+            for c in range(col, col + w):
+                if not (0 <= c < self.width):
+                    continue
+                self._cells[r][c] = Cell(char, fg, bg)

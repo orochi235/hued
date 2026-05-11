@@ -71,3 +71,25 @@ def test_put_str_negative_col_clips_left():
     assert f.get(0, 0).char == "c"
     assert f.get(0, 1).char == "d"
     assert f.get(0, 2).char == "e"
+
+
+def test_fill_paints_rectangle():
+    f = Frame(5, 4)
+    f.fill(1, 1, w=3, h=2, char="#", bg=RGB(20, 20, 20))
+    assert f.get(0, 0) == Cell()
+    assert f.get(3, 4) == Cell()
+    for r in range(1, 3):
+        for c in range(1, 4):
+            assert f.get(r, c) == Cell("#", None, RGB(20, 20, 20))
+
+
+def test_fill_clips_to_frame_bounds():
+    f = Frame(3, 3)
+    f.fill(2, 2, w=5, h=5, char="*")
+    assert f.get(2, 2).char == "*"
+
+
+def test_fill_zero_size_is_noop():
+    f = Frame(3, 3)
+    f.fill(0, 0, w=0, h=0, char="x")
+    assert f.get(0, 0) == Cell()
