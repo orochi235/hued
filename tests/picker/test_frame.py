@@ -138,3 +138,16 @@ def test_render_resets_between_rows():
     idx = out.index("\x1b[2;1H")
     second_row = out[idx:]
     assert "\x1b[0m" in out[:idx] or "\x1b[0m" in second_row[:20]
+
+
+import io
+
+
+def test_flush_writes_and_flushes():
+    f = Frame(2, 1)
+    f.put_cell(0, 0, "X", fg=RGB(1, 2, 3))
+    buf = io.StringIO()
+    f.flush(buf)
+    text = buf.getvalue()
+    assert text == f.render()
+    assert "X" in text
