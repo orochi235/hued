@@ -79,3 +79,24 @@ def test_oklch_roundtrip_tolerance():
         assert abs(back.r - rgb.r) <= 8
         assert abs(back.g - rgb.g) <= 8
         assert abs(back.b - rgb.b) <= 8
+
+
+from src.picker.colors import Lab, rgb_to_lab, lab_to_rgb
+
+
+def test_rgb_to_lab_black():
+    lab = rgb_to_lab(RGB(0, 0, 0))
+    assert lab.l == 0
+
+
+def test_rgb_to_lab_white():
+    lab = rgb_to_lab(RGB(255, 255, 255))
+    assert lab.l == 100 and abs(lab.a) <= 1 and abs(lab.b) <= 1
+
+
+def test_lab_roundtrip_tolerance():
+    for rgb in (RGB(64, 128, 192), RGB(200, 50, 100), RGB(20, 200, 80)):
+        back = lab_to_rgb(rgb_to_lab(rgb))
+        assert abs(back.r - rgb.r) <= 2
+        assert abs(back.g - rgb.g) <= 2
+        assert abs(back.b - rgb.b) <= 2
