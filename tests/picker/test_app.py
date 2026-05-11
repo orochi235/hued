@@ -368,3 +368,158 @@ def test_search_other_key_is_ignored():
     assert action is Action.CONTINUE
     assert new_s.filter == "r"       # unchanged — arrow not appended
     assert new_s.pane == "sw"        # pane not changed
+
+
+# ---------------------------------------------------------------------------
+# Task 4: NW pane + SW slider pane (focus mode)
+# ---------------------------------------------------------------------------
+
+def _sw_state(**kwargs) -> State:
+    """A state with sw pane focused."""
+    base = dataclasses.replace(
+        _default_state(),
+        pane="sw", panes_mode="focus", hex_mode=False,
+        model="rgb", focused_channel=0, acc_value=None,
+    )
+    return dataclasses.replace(base, **kwargs)
+
+
+def test_nw_arrow_left_cycles_model_backward():
+    s = dataclasses.replace(_default_state(), pane="nw", panes_mode="focus",
+                            model="hsl", acc_value=5, view_idx=1)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=False, ctrl=False))
+    assert new_s.model == "rgb"
+    assert new_s.acc_value is None
+    assert new_s.view_idx == 0
+
+
+def test_nw_arrow_left_wraps_model():
+    s = dataclasses.replace(_default_state(), pane="nw", panes_mode="focus",
+                            model="rgb")
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=False, ctrl=False))
+    assert new_s.model == "lab"
+
+
+def test_nw_arrow_right_cycles_model_forward():
+    s = dataclasses.replace(_default_state(), pane="nw", panes_mode="focus",
+                            model="rgb")
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.model == "hsl"
+
+
+def test_nw_l_toggles_live():
+    s = dataclasses.replace(_default_state(), pane="nw", panes_mode="focus", live=False)
+    new_s, _ = update(s, _char("l"))
+    assert new_s.live is True
+    new_s2, _ = update(new_s, _char("l"))
+    assert new_s2.live is False
+
+
+def test_nw_enter_advances_step():
+    s = dataclasses.replace(_default_state(), pane="nw", panes_mode="focus", step="bg")
+    new_s, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
+    assert action is Action.CONTINUE
+    assert new_s.step == "fg"
+
+
+def test_sw_arrow_up_decrements_channel():
+    s = _sw_state(focused_channel=1, acc_value=10)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_UP, char=None, shift=False, ctrl=False))
+    assert new_s.focused_channel == 0
+    assert new_s.acc_value is None
+
+
+def test_sw_arrow_up_clamps_at_zero():
+    s = _sw_state(focused_channel=0)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_UP, char=None, shift=False, ctrl=False))
+    assert new_s.focused_channel == 0
+
+
+def test_sw_arrow_down_increments_channel():
+    s = _sw_state(model="rgb", focused_channel=0)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_DOWN, char=None, shift=False, ctrl=False))
+    assert new_s.focused_channel == 1
+
+
+def test_sw_arrow_down_clamps_at_max_channel():
+    s = _sw_state(model="rgb", focused_channel=2)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_DOWN, char=None, shift=False, ctrl=False))
+    assert new_s.focused_channel == 2   # clamped at 2 (rgb has 3 channels)
+
+
+def test_sw_arrow_right_increments_channel_value():
+    # RGB model, ch0=R, bg=RGB(100, 50, 50) -> new R=101
+    s = _sw_state(model="rgb", focused_channel=0,
+                  bg=RGB(100, 50, 50), step="bg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.bg.r == 101
+    assert new_s.acc_value == 101
+
+
+def test_sw_arrow_right_uses_acc_value_as_base():
+    # acc_value overrides current channel value as the base for adjustment
+    s = _sw_state(model="rgb", focused_channel=0,
+                  bg=RGB(100, 50, 50), step="bg", acc_value=50)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.bg.r == 51   # 50 + 1, not 100 + 1
+    assert new_s.acc_value == 51
+
+
+def test_sw_arrow_left_decrements_channel_value():
+    s = _sw_state(model="rgb", focused_channel=1,
+                  bg=RGB(50, 100, 50), step="bg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=False, ctrl=False))
+    assert new_s.bg.g == 99
+    assert new_s.acc_value == 99
+
+
+def test_sw_arrow_right_shift_increments_by_10():
+    s = _sw_state(model="rgb", focused_channel=0,
+                  bg=RGB(100, 50, 50), step="bg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=True, ctrl=False))
+    assert new_s.bg.r == 110
+    assert new_s.acc_value == 110
+
+
+def test_sw_arrow_left_shift_decrements_by_10():
+    s = _sw_state(model="rgb", focused_channel=0,
+                  bg=RGB(100, 50, 50), step="bg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=True, ctrl=False))
+    assert new_s.bg.r == 90
+    assert new_s.acc_value == 90
+
+
+def test_sw_channel_value_clamps_at_max():
+    # R at 250, arrow-right-shift by 10 -> 255 (not 260)
+    s = _sw_state(model="rgb", focused_channel=0,
+                  bg=RGB(250, 50, 50), step="bg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=True, ctrl=False))
+    assert new_s.bg.r == 255
+
+
+def test_sw_channel_value_clamps_at_zero():
+    s = _sw_state(model="rgb", focused_channel=0,
+                  bg=RGB(5, 50, 50), step="bg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_LEFT, char=None, shift=True, ctrl=False))
+    assert new_s.bg.r == 0
+
+
+def test_sw_adjust_fg_when_step_fg():
+    s = _sw_state(model="rgb", focused_channel=2,
+                  fg=RGB(50, 50, 100), step="fg", acc_value=None)
+    new_s, _ = update(s, KeyEvent(key=Key.ARROW_RIGHT, char=None, shift=False, ctrl=False))
+    assert new_s.fg.b == 101
+    assert new_s.bg == s.bg   # bg unchanged
+
+
+def test_sw_enter_advances_from_bg_to_fg():
+    s = _sw_state(step="bg")
+    new_s, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
+    assert action is Action.CONTINUE
+    assert new_s.step == "fg"
+
+
+def test_sw_enter_on_fg_step_confirms():
+    s = _sw_state(step="fg")
+    _, action = update(s, KeyEvent(key=Key.ENTER, char=None, shift=False, ctrl=False))
+    assert action is Action.CONFIRM
