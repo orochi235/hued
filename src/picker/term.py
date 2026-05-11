@@ -1,4 +1,6 @@
 from __future__ import annotations
+import sys
+from typing import IO
 from src.picker.keys import Key, KeyEvent
 
 
@@ -58,3 +60,63 @@ def parse_key(buf: bytes) -> KeyEvent:
         return KeyEvent(Key.UNKNOWN, None, False, False)
 
     return KeyEvent(Key.UNKNOWN, None, False, False)
+
+
+def osc_bg(hex_value: str, stream: IO[str] = sys.stdout) -> None:
+    """Emit OSC 11: set terminal background. hex_value e.g. '#1a0a0a'."""
+    h = hex_value.lstrip("#")
+    stream.write(f"\x1b]11;rgb:{h[0:2]}/{h[2:4]}/{h[4:6]}\x07")
+    stream.flush()
+
+
+def osc_fg(hex_value: str, stream: IO[str] = sys.stdout) -> None:
+    h = hex_value.lstrip("#")
+    stream.write(f"\x1b]10;rgb:{h[0:2]}/{h[2:4]}/{h[4:6]}\x07")
+    stream.flush()
+
+
+def osc_reset_bg(stream: IO[str] = sys.stdout) -> None:
+    stream.write("\x1b]111;\x07")
+    stream.flush()
+
+
+def osc_reset_fg(stream: IO[str] = sys.stdout) -> None:
+    stream.write("\x1b]110;\x07")
+    stream.flush()
+
+
+def ansi_truecolor_bg(r: int, g: int, b: int) -> str:
+    return f"\x1b[48;2;{r};{g};{b}m"
+
+
+def ansi_truecolor_fg(r: int, g: int, b: int) -> str:
+    return f"\x1b[38;2;{r};{g};{b}m"
+
+
+def ansi_reset() -> str:
+    return "\x1b[0m"
+
+
+def cursor_to(row: int, col: int) -> str:
+    """1-indexed row/col."""
+    return f"\x1b[{row};{col}H"
+
+
+def hide_cursor() -> str:
+    return "\x1b[?25l"
+
+
+def show_cursor() -> str:
+    return "\x1b[?25h"
+
+
+def enter_alt_screen() -> str:
+    return "\x1b[?1049h"
+
+
+def exit_alt_screen() -> str:
+    return "\x1b[?1049l"
+
+
+def clear_screen() -> str:
+    return "\x1b[2J"
