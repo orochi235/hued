@@ -1,6 +1,7 @@
 from __future__ import annotations
+import sys
 from dataclasses import dataclass
-from typing import Optional
+from typing import IO, Optional
 
 from src.picker.colors import RGB
 from src.picker.term import (
@@ -104,3 +105,7 @@ class Frame:
                 parts.append(cell.char)
         parts.append(ansi_reset())
         return "".join(parts)
+
+    def flush(self, stream: IO[str] = sys.stdout) -> None:
+        stream.write(self.render())
+        stream.flush()
