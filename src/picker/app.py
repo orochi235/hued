@@ -779,3 +779,150 @@ def render(state: State, cols: int, rows: int) -> Frame:
         fc += len(desc_text)
 
     return frame
+
+
+import os
+import signal
+import threading
+
+
+def run(
+    initial_bg: RGB,
+    initial_fg: RGB,
+    output_path: Optional[str],
+    live: bool,
+) -> int:
+    """Event-loop entry point. Returns an exit code: 0 = confirmed, 1 = cancelled.
+
+    Side effects (all contained here — update() and render() remain pure):
+      - Enter/exit alternate screen
+      - Hide/show cursor
+      - Install/uninstall SIGWINCH handler
+      - Emit OSC bg/fg sequences when live=True
+      - Write .hued output file on confirm
+
+    This function is NOT unit-tested. It is exercised by the Phase 5
+    interactive smoke test via `python3 -m src.picker --app`.
+    """
+    import src.picker.term as t
+    from src.picker.colors import rgb_to_hex
+
+    state = initial_state(initial_bg, initial_fg, live)
+
+    # Resize flag: set in signal handler, consumed in main loop
+    _resize_pending = threading.Event()
+
+    def _on_resize(new_cols: int, new_rows: int) -> None:
+        _resize_pending.set()
+
+    # Enter alternate screen and hide cursor
+    sys.stdout.write(t.enter_alt_screen())
+    sys.stdout.write(t.hide_cursor())
+    sys.stdout.write(t.clear_screen())
+    sys.stdout.flush()
+
+    # Initial OSC live colors
+    if live:
+        t.osc_bg(rgb_to_hex(state.bg))
+        t.osc_fg(rgb_to_hex(state.fg))
+
+    t.install_resize_handler(_on_resize)
+
+    action = Action.CONTINUE
+    try:
+        with t.raw_mode():
+            # Initial render
+            cols, rows = t.get_size()
+            render(state, cols, rows).flush()
+
+            while action is Action.CONTINUE:
+                ev = t.read_key()
+
+                prev_bg = state.bg
+                prev_fg = state.fg
+
+                cols, rows = t.get_size()
+                state, action = update(state, ev, cols=cols, rows=rows)
+
+                # Apply OSC if live and color changed
+                if state.live:
+                    if state.bg != prev_bg:
+                        t.osc_bg(rgb_to_hex(state.bg))
+                    if state.fg != prev_fg:
+                        t.osc_fg(rgb_to_hex(state.fg))
+
+                # Handle pending resize
+                if _resize_pending.is_set():
+                    _resize_pending.clear()
+                    cols, rows = t.get_size()
+                    sys.stdout.write(t.clear_screen())
+
+                # Re-render
+                cols, rows = t.get_size()
+                render(state, cols, rows).flush()
+
+    finally:
+        t.uninstall_resize_handler()
+        if live:
+            t.osc_reset_bg()
+            t.osc_reset_fg()
+        sys.stdout.write(t.show_cursor())
+        sys.stdout.write(t.exit_alt_screen())
+        sys.stdout.flush()
+
+    if action is Action.CONFIRM:
+        result = (
+            f"background={rgb_to_hex(state.bg)}\n"
+            f"foreground={rgb_to_hex(state.fg)}\n"
+        )
+        if output_path:
+            from pathlib import Path
+            Path(output_path).write_text(result)
+        else:
+            sys.stdout.write(result)
+            sys.stdout.flush()
+        return 0
+
+    # CANCEL
+    return 1
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    """CLI entry point for the picker.
+
+    Usage:
+      python3 -m src.picker --app [--bg #rrggbb] [--fg #rrggbb] [--live] [--output PATH]
+
+    Exit codes: 0 = color confirmed and written, 1 = cancelled.
+    """
+    import argparse
+    from src.picker.colors import hex_to_rgb, rgb_to_hex
+
+    parser = argparse.ArgumentParser(
+        prog="hued-pick",
+        description="Interactive terminal color picker",
+    )
+    parser.add_argument("--bg", default="#1a1a2e",
+                        help="Initial background color as hex (default: #1a1a2e)")
+    parser.add_argument("--fg", default="#e0e0e0",
+                        help="Initial foreground color as hex (default: #e0e0e0)")
+    parser.add_argument("--live", action="store_true",
+                        help="Apply colors to terminal in real time via OSC")
+    parser.add_argument("--output", default=None,
+                        help="Write result to this file instead of stdout")
+
+    args = parser.parse_args(argv)
+
+    try:
+        initial_bg = hex_to_rgb(args.bg)
+    except (ValueError, IndexError):
+        print(f"hued-pick: invalid --bg color: {args.bg!r}", file=sys.stderr)
+        return 2
+
+    try:
+        initial_fg = hex_to_rgb(args.fg)
+    except (ValueError, IndexError):
+        print(f"hued-pick: invalid --fg color: {args.fg!r}", file=sys.stderr)
+        return 2
+
+    return run(initial_bg, initial_fg, args.output, args.live)
