@@ -317,5 +317,68 @@ def update(state: State, event: KeyEvent) -> tuple[State, Action]:
     if pm != "focus":
         return state, Action.CONTINUE
 
-    # Pane-specific handlers are implemented in Tasks 4-7.
+    # -----------------------------------------------------------------------
+    # Enter in focus mode (non-SE panes): advance step or confirm
+    # (mirrors App.tsx:198)
+    # -----------------------------------------------------------------------
+    if k is Key.ENTER and p != "se":
+        return _advance(state)
+
+    # -----------------------------------------------------------------------
+    # NW pane: settings controls (mirrors App.tsx:200-204)
+    # -----------------------------------------------------------------------
+    if p == "nw":
+        if k is Key.ARROW_LEFT:
+            prev_model = _MODELS[(_MODELS.index(state.model) - 1) % len(_MODELS)]
+            return dataclasses.replace(
+                state, model=prev_model, acc_value=None, view_idx=0
+            ), Action.CONTINUE
+        if k is Key.ARROW_RIGHT:
+            next_model = _MODELS[(_MODELS.index(state.model) + 1) % len(_MODELS)]
+            return dataclasses.replace(
+                state, model=next_model, acc_value=None, view_idx=0
+            ), Action.CONTINUE
+        if k is Key.CHAR and ch == "l":
+            return dataclasses.replace(state, live=not state.live), Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # SW pane — slider controls (hex_mode=False) (mirrors App.tsx:206-219)
+    # -----------------------------------------------------------------------
+    if p == "sw" and not state.hex_mode:
+        if k is Key.ARROW_UP:
+            new_ch = max(0, state.focused_channel - 1)
+            return dataclasses.replace(
+                state, focused_channel=new_ch, acc_value=None
+            ), Action.CONTINUE
+        if k is Key.ARROW_DOWN:
+            n_channels = len(_CHANNEL_MAX[state.model])
+            new_ch = min(n_channels - 1, state.focused_channel + 1)
+            return dataclasses.replace(
+                state, focused_channel=new_ch, acc_value=None
+            ), Action.CONTINUE
+
+        # Horizontal arrows adjust the focused channel value
+        base = (
+            state.acc_value
+            if state.acc_value is not None
+            else _channel_value(state.model, state.current, state.focused_channel)
+        )
+        step_size = 10 if event.shift else 1
+        if k is Key.ARROW_RIGHT:
+            new_val = base + step_size
+        elif k is Key.ARROW_LEFT:
+            new_val = base - step_size
+        else:
+            new_val = None  # key not handled here
+
+        if new_val is not None:
+            clamped = max(0, min(_CHANNEL_MAX[state.model][state.focused_channel], new_val))
+            new_rgb = _apply_channel(
+                state.model, state.current, state.focused_channel, clamped
+            )
+            new_state = _set_current(state, new_rgb)
+            new_state = dataclasses.replace(new_state, acc_value=clamped)
+            return new_state, Action.CONTINUE
+
+    # All other keys in focus mode: no-op
     return state, Action.CONTINUE
