@@ -67,3 +67,115 @@ def test_action_enum_has_three_members():
     assert Action.CONTINUE is not None
     assert Action.CONFIRM is not None
     assert Action.CANCEL is not None
+
+
+from src.picker.app import update, _channel_value, _apply_channel
+from src.picker.keys import Key, KeyEvent
+
+
+# ---------------------------------------------------------------------------
+# Channel-value helpers
+# ---------------------------------------------------------------------------
+
+def _ev(key: Key, char: str = "", shift: bool = False, ctrl: bool = False) -> KeyEvent:
+    """Shortcut to build a KeyEvent for tests."""
+    return KeyEvent(key=key, char=char if char else None, shift=shift, ctrl=ctrl)
+
+
+def _char(c: str) -> KeyEvent:
+    return KeyEvent(key=Key.CHAR, char=c, shift=False, ctrl=False)
+
+
+def test_channel_value_rgb():
+    from src.picker.app import _channel_value
+    rgb = RGB(10, 20, 30)
+    assert _channel_value("rgb", rgb, 0) == 10   # R
+    assert _channel_value("rgb", rgb, 1) == 20   # G
+    assert _channel_value("rgb", rgb, 2) == 30   # B
+
+
+def test_channel_value_hsl():
+    from src.picker.app import _channel_value
+    from src.picker.colors import rgb_to_hsl
+    rgb = RGB(255, 0, 0)  # pure red -> H=0, S=100, L=50
+    hsl = rgb_to_hsl(rgb)
+    assert _channel_value("hsl", rgb, 0) == round(hsl.h)
+    assert _channel_value("hsl", rgb, 1) == round(hsl.s)
+    assert _channel_value("hsl", rgb, 2) == round(hsl.l)
+
+
+def test_channel_value_oklch():
+    from src.picker.app import _channel_value
+    from src.picker.colors import rgb_to_oklch
+    rgb = RGB(100, 150, 200)
+    oklch = rgb_to_oklch(rgb)
+    assert _channel_value("oklch", rgb, 0) == oklch.l
+    assert _channel_value("oklch", rgb, 1) == oklch.c
+    assert _channel_value("oklch", rgb, 2) == oklch.h
+
+
+def test_channel_value_lab():
+    from src.picker.app import _channel_value
+    from src.picker.colors import rgb_to_lab
+    rgb = RGB(100, 150, 200)
+    lab = rgb_to_lab(rgb)
+    assert _channel_value("lab", rgb, 0) == lab.l
+    assert _channel_value("lab", rgb, 1) == lab.a + 128   # slider uses 0-255 range
+    assert _channel_value("lab", rgb, 2) == lab.b + 128
+
+
+def test_apply_channel_rgb_clamps():
+    from src.picker.app import _apply_channel
+    base = RGB(0, 128, 255)
+    # Set R to 300 -> clamped to 255
+    result = _apply_channel("rgb", base, 0, 300)
+    assert result.r == 255
+    assert result.g == 128  # unchanged
+    # Set G to -5 -> clamped to 0
+    result2 = _apply_channel("rgb", base, 1, -5)
+    assert result2.g == 0
+
+
+def test_apply_channel_hsl_round_trips():
+    from src.picker.app import _apply_channel
+    from src.picker.colors import rgb_to_hsl
+    base = RGB(255, 0, 0)  # H=0, S=100, L=50
+    # Set S to 50
+    result = _apply_channel("hsl", base, 1, 50)
+    hsl_out = rgb_to_hsl(result)
+    assert abs(round(hsl_out.s) - 50) <= 2
+
+
+def test_apply_channel_oklch_clamps():
+    from src.picker.app import _apply_channel
+    base = RGB(100, 150, 200)
+    # Set C to 500 -> clamped to 400
+    result = _apply_channel("oklch", base, 1, 500)
+    from src.picker.colors import rgb_to_oklch
+    out = rgb_to_oklch(result)
+    assert out.c <= 400
+
+
+def test_apply_channel_lab_slider_range():
+    from src.picker.app import _apply_channel
+    from src.picker.colors import rgb_to_lab
+    base = RGB(100, 150, 200)
+    # Set lab.a slider to 128 (raw_a = 0)
+    result = _apply_channel("lab", base, 1, 128)
+    lab_out = rgb_to_lab(result)
+    assert abs(lab_out.a) <= 5   # should be near 0
+
+# ---------------------------------------------------------------------------
+# update() skeleton — UNKNOWN key returns (unchanged_state, CONTINUE)
+# ---------------------------------------------------------------------------
+
+def _default_state() -> State:
+    return initial_state(RGB(20, 40, 60), RGB(200, 180, 160), live=False)
+
+
+def test_update_unknown_key_returns_continue():
+    s = _default_state()
+    ev = KeyEvent(key=Key.UNKNOWN, char=None, shift=False, ctrl=False)
+    new_s, action = update(s, ev)
+    assert action is Action.CONTINUE
+    assert new_s == s
