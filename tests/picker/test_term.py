@@ -2,6 +2,7 @@ from src.picker.term import (
     ansi_truecolor_bg, ansi_truecolor_fg, ansi_reset,
     cursor_to, hide_cursor, show_cursor,
     enter_alt_screen, exit_alt_screen, clear_screen,
+    get_size,
 )
 
 
@@ -27,3 +28,8 @@ def test_screen_helpers():
     assert enter_alt_screen() == "\x1b[?1049h"
     assert exit_alt_screen() == "\x1b[?1049l"
     assert clear_screen() == "\x1b[2J"
+
+
+def test_get_size_returns_positive_pair():
+    cols, rows = get_size()
+    assert cols >= 1 and rows >= 1
