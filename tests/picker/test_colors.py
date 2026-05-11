@@ -100,3 +100,20 @@ def test_lab_roundtrip_tolerance():
         assert abs(back.r - rgb.r) <= 2
         assert abs(back.g - rgb.g) <= 2
         assert abs(back.b - rgb.b) <= 2
+
+
+from src.picker.colors import nearest_name
+
+
+def test_nearest_name_exact_match():
+    names = {"red": "#ff0000", "green": "#00ff00", "blue": "#0000ff"}
+    assert nearest_name(RGB(255, 0, 0), names) == "red"
+
+
+def test_nearest_name_close_match():
+    names = {"red": "#ff0000", "green": "#00ff00", "blue": "#0000ff"}
+    assert nearest_name(RGB(250, 5, 5), names) == "red"
+
+
+def test_nearest_name_empty_returns_empty_string():
+    assert nearest_name(RGB(128, 128, 128), {}) == ""

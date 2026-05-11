@@ -174,3 +174,15 @@ def lab_to_rgb(lab: Lab) -> RGB:
         _clamp_u8(_delinearize(gl) * 255),
         _clamp_u8(_delinearize(bl) * 255),
     )
+
+
+def nearest_name(rgb: RGB, names: dict[str, str]) -> str:
+    best = ""
+    best_dist = float("inf")
+    for name, hex_val in names.items():
+        c = hex_to_rgb(hex_val)
+        d = (c.r - rgb.r) ** 2 + (c.g - rgb.g) ** 2 + (c.b - rgb.b) ** 2
+        if d < best_dist:
+            best_dist = d
+            best = name
+    return best
