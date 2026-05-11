@@ -188,7 +188,12 @@ def _advance(state: State) -> tuple[State, Action]:
     return state, Action.CONFIRM
 
 
-def update(state: State, event: KeyEvent) -> tuple[State, Action]:
+def update(
+    state: State,
+    event: KeyEvent,
+    cols: int = 80,
+    rows: int = 24,
+) -> tuple[State, Action]:
     """Pure state transition function. Takes current State and a KeyEvent;
     returns (new_state, action). Never mutates state.
 
@@ -408,6 +413,56 @@ def update(state: State, event: KeyEvent) -> tuple[State, Action]:
             new_state = _set_current(state, new_rgb)
             new_state = dataclasses.replace(new_state, acc_value=clamped)
             return new_state, Action.CONTINUE
+
+    # -----------------------------------------------------------------------
+    # SE pane — swatch browser (mirrors App.tsx:326-337 onHover/onSelect)
+    # -----------------------------------------------------------------------
+    if p == "se":
+        # Compute the number of swatch columns for this terminal width
+        half_w = cols // 2
+        se_pane_w = cols - half_w - 2   # subtract border chars
+        num_cols_sw = max(1, (se_pane_w - 2) // 5)
+
+        # Build the filtered+sorted entry list (same logic as render_swatch_browser)
+        from src.picker.components.swatch_browser import sort_entries
+        all_entries = list(NAMED_COLORS.items())
+        filtered = [(n, h) for n, h in all_entries
+                    if state.filter.lower() in n.lower()]
+        entries = sort_entries(filtered, state.sort_mode)
+        n_entries = len(entries)
+
+        if n_entries == 0:
+            return state, Action.CONTINUE
+
+        def _preview_at(idx: int, base: State) -> State:
+            """Apply the color at `idx` in `entries` to the current channel."""
+            clamped = max(0, min(n_entries - 1, idx))
+            _, hex_val = entries[clamped]
+            new_rgb = hex_to_rgb(hex_val)
+            return _set_current(dataclasses.replace(base, swatch_idx=clamped), new_rgb)
+
+        if k is Key.ARROW_RIGHT:
+            new_idx = min(n_entries - 1, state.swatch_idx + 1)
+            return _preview_at(new_idx, state), Action.CONTINUE
+
+        if k is Key.ARROW_LEFT:
+            new_idx = max(0, state.swatch_idx - 1)
+            return _preview_at(new_idx, state), Action.CONTINUE
+
+        if k is Key.ARROW_DOWN:
+            new_idx = min(n_entries - 1, state.swatch_idx + num_cols_sw)
+            return _preview_at(new_idx, state), Action.CONTINUE
+
+        if k is Key.ARROW_UP:
+            new_idx = max(0, state.swatch_idx - num_cols_sw)
+            return _preview_at(new_idx, state), Action.CONTINUE
+
+        if k is Key.ENTER:
+            # Apply selected color and advance
+            _, hex_val = entries[max(0, min(n_entries - 1, state.swatch_idx))]
+            new_rgb = hex_to_rgb(hex_val)
+            new_state = _set_current(state, new_rgb)
+            return _advance(new_state)
 
     # All other keys in focus mode: no-op
     return state, Action.CONTINUE
