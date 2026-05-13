@@ -18,7 +18,10 @@ _hued() {
     subcommand)
       local subcommands=(
         'set:create or update .hued in the current directory'
+        'get:print the resolved hex for a channel'
+        'mod:apply a pastel transform to a channel and save the result'
         'where:print the path to the controlling .hued file'
+        'resolve:print the canonical #rrggbb hex for a color (via pastel)'
         'pack:generate a JSON map of .hued configs from a directory tree'
         'unpack:restore .hued files from a JSON map'
       )
@@ -38,6 +41,16 @@ _hued() {
         unpack)
           _files -g '*.json'
           ;;
+        resolve)
+          local colors=("${(@f)$(_hued_colors)}")
+          _describe 'color' colors
+          ;;
+        get)
+          _describe 'channel' '(bg:"background" fg:"foreground")'
+          ;;
+        mod)
+          _describe 'channel' '(bg:"background" fg:"foreground")'
+          ;;
       esac
       ;;
     arg3)
@@ -45,6 +58,9 @@ _hued() {
         set)
           local colors=("${(@f)$(_hued_colors)}")
           _describe 'color' colors
+          ;;
+        mod)
+          _describe 'op' '(darken lighten saturate desaturate rotate complement to-gray mix)'
           ;;
         pack)
           compadd -- '-o'

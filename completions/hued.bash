@@ -7,7 +7,19 @@ _hued_completion() {
   COMPREPLY=()
 
   if [[ $COMP_CWORD -eq 1 ]]; then
-    mapfile -t COMPREPLY < <(compgen -W "set where pack unpack" -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "set get mod where resolve pack unpack" -- "$cur")
+  elif [[ $prev == "get" ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "bg fg" -- "$cur")
+  elif [[ $prev == "mod" ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "bg fg" -- "$cur")
+  elif [[ "$pprev" == "mod" && ( "$prev" == "bg" || "$prev" == "fg" ) ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "darken lighten saturate desaturate rotate complement to-gray mix" -- "$cur")
+  elif [[ $prev == "resolve" ]]; then
+    if [[ -f "$names_file" ]]; then
+      mapfile -t COMPREPLY < <(
+        compgen -W "$(grep -o '^\[[^]]*\]' "$names_file" | tr -d '[]')" -- "$cur"
+      )
+    fi
   elif [[ $prev == "set" ]]; then
     mapfile -t COMPREPLY < <(compgen -W "bg fg" -- "$cur")
     if [[ -f "$names_file" ]]; then

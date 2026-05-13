@@ -69,15 +69,32 @@ PROMPT_COMMAND="_hued_apply${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 ```
 hued                          # print current colors
 hued where                    # print path to the controlling .hued file
+hued get bg|fg                # print the resolved hex for a channel
 hued set <color>              # set background color
-hued set bg <color>           # set background color
-hued set fg <color>           # set foreground color
+hued set bg|fg <color>        # set the named channel
+hued mod bg|fg <op> [<args>]  # apply a pastel transform to a channel
+hued resolve <color>          # print canonical #rrggbb for a color (requires pastel)
 hued pack [<dir>] [-o <file>] # export all .hued files under <dir> to JSON
 hued unpack <file> [--force]  # restore .hued files from a JSON export
 hued -i [--live]              # open interactive color picker
 ```
 
-`pack` defaults to `$HOME` if no directory is given. `unpack` skips existing `.hued` files unless `--force` is passed.
+`set` also accepts a color from stdin when no color argument is given, so pipelines work:
+
+```
+pastel darken 0.2 red | pastel format hex | hued set bg
+```
+
+`mod` is sugar for the read-transform-write loop. Supported ops:
+`darken`, `lighten`, `saturate`, `desaturate` (amount as `0.2` or `20%`); `rotate` (`30` or `30deg`); `complement`, `to-gray` (no args); `mix <other-color> [<ratio>]` (ratio defaults to `0.5`).
+
+```
+hued mod bg darken 20%
+hued mod fg rotate 30deg
+hued mod bg mix '#0000ff' 0.25
+```
+
+`pack` defaults to the current directory if none is given. `unpack` skips existing `.hued` files unless `--force` is passed. `get`, `mod`, and `resolve` all shell out to [`pastel`](https://github.com/sharkdp/pastel) (`brew install pastel`); `pastel` accepts named colors, hex, `rgb()`, `hsl()`, etc.
 
 ## Interactive picker
 

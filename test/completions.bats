@@ -22,9 +22,31 @@ _complete() {
 @test "completes top-level subcommands" {
   _complete hued ""
   [[ "${COMPREPLY[*]}" == *"set"* ]]
+  [[ "${COMPREPLY[*]}" == *"get"* ]]
+  [[ "${COMPREPLY[*]}" == *"mod"* ]]
   [[ "${COMPREPLY[*]}" == *"where"* ]]
+  [[ "${COMPREPLY[*]}" == *"resolve"* ]]
   [[ "${COMPREPLY[*]}" == *"pack"* ]]
   [[ "${COMPREPLY[*]}" == *"unpack"* ]]
+}
+
+@test "get: suggests bg and fg" {
+  _complete hued get ""
+  [[ "${COMPREPLY[*]}" == *"bg"* ]]
+  [[ "${COMPREPLY[*]}" == *"fg"* ]]
+}
+
+@test "mod: suggests bg and fg" {
+  _complete hued mod ""
+  [[ "${COMPREPLY[*]}" == *"bg"* ]]
+  [[ "${COMPREPLY[*]}" == *"fg"* ]]
+}
+
+@test "mod bg: suggests transform ops" {
+  _complete hued mod bg ""
+  [[ "${COMPREPLY[*]}" == *"darken"* ]]
+  [[ "${COMPREPLY[*]}" == *"lighten"* ]]
+  [[ "${COMPREPLY[*]}" == *"mix"* ]]
 }
 
 @test "filters subcommands by prefix" {

@@ -39,11 +39,35 @@ _hued_normalize_color() {
   printf '%s' "$1"
 }
 
+_hued_parse_amount() {
+  local val="$1"
+  if [[ "$val" =~ ^([0-9]+(\.[0-9]+)?)%$ ]]; then
+    awk -v n="${BASH_REMATCH[1]}" 'BEGIN{printf "%g", n/100}'
+  else
+    printf '%s' "$val"
+  fi
+}
+
+_hued_parse_degrees() {
+  local val="${1%deg}"
+  val="${val%°}"
+  printf '%s' "$val"
+}
+
+_hued_read_stdin_color() {
+  [[ -t 0 ]] && return 1
+  local line
+  IFS= read -r line || return 1
+  line="${line//[[:space:]]/}"
+  [[ -z "$line" ]] && return 1
+  printf '%s' "$line"
+}
+
 _hued_set_key() {
   local key="$1" color
   color="$(_hued_normalize_color "$2")"
   if [[ -f .hued ]]; then
-    grep -v "^${key}=" .hued > .hued.tmp
+    grep -v "^${key}=" .hued > .hued.tmp || true
     echo "${key}=${color}" >> .hued.tmp
     mv .hued.tmp .hued
   else
@@ -63,28 +87,109 @@ case "${1:-}" in
     echo "$file"
     ;;
 
+  resolve)
+    [[ -z "${2:-}" ]] && { echo "Usage: hued resolve <color>" >&2; exit 1; }
+    command -v pastel >/dev/null 2>&1 || {
+      echo "hued resolve: requires 'pastel' (brew install pastel)" >&2
+      exit 1
+    }
+    pastel format hex "$2"
+    ;;
+
+  get)
+    case "${2:-}" in
+      bg|background) key="background" ;;
+      fg|foreground) key="foreground" ;;
+      *) echo "Usage: hued get [bg|fg]" >&2; exit 1 ;;
+    esac
+    file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
+    raw=$({ grep -m1 "^${key}=" "$file" || true; } | cut -d= -f2 | tr -d '[:space:]')
+    [[ -z "$raw" ]] && exit 1
+    command -v pastel >/dev/null 2>&1 || {
+      echo "hued get: requires 'pastel' (brew install pastel)" >&2
+      exit 1
+    }
+    pastel format hex "$raw"
+    ;;
+
+  mod)
+    case "${2:-}" in
+      bg|background) key="background" ;;
+      fg|foreground) key="foreground" ;;
+      *) echo "Usage: hued mod [bg|fg] <op> [<args>...]" >&2; exit 1 ;;
+    esac
+    op="${3:-}"
+    [[ -z "$op" ]] && { echo "Usage: hued mod $2 <op> [<args>...]" >&2; exit 1; }
+    command -v pastel >/dev/null 2>&1 || {
+      echo "hued mod: requires 'pastel' (brew install pastel)" >&2
+      exit 1
+    }
+    file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
+    current=$({ grep -m1 "^${key}=" "$file" || true; } | cut -d= -f2 | tr -d '[:space:]')
+    [[ -z "$current" ]] && { echo "hued mod: ${key} not set in $file" >&2; exit 1; }
+    case "$op" in
+      darken|lighten|saturate|desaturate)
+        amount="${4:-}"
+        [[ -z "$amount" ]] && { echo "Usage: hued mod $2 $op <amount|percent>" >&2; exit 1; }
+        amount="$(_hued_parse_amount "$amount")"
+        new=$(pastel "$op" "$amount" "$current" | pastel format hex) || exit 1
+        ;;
+      rotate)
+        [[ -z "${4:-}" ]] && { echo "Usage: hued mod $2 rotate <degrees>" >&2; exit 1; }
+        degrees="$(_hued_parse_degrees "$4")"
+        new=$(pastel rotate "$degrees" "$current" | pastel format hex) || exit 1
+        ;;
+      complement|to-gray)
+        new=$(pastel "$op" "$current" | pastel format hex) || exit 1
+        ;;
+      mix)
+        other="${4:-}"
+        [[ -z "$other" ]] && { echo "Usage: hued mod $2 mix <other-color> [<ratio>]" >&2; exit 1; }
+        ratio="$(_hued_parse_amount "${5:-0.5}")"
+        new=$(pastel mix --fraction "$ratio" "$other" "$current" | pastel format hex) || exit 1
+        ;;
+      *)
+        echo "hued mod: unknown op '$op' (darken, lighten, saturate, desaturate, rotate, complement, to-gray, mix)" >&2
+        exit 1
+        ;;
+    esac
+    _hued_set_key "$key" "$new"
+    ;;
+
   set)
     case "${2:-}" in
       bg|background)
-        [[ -z "${3:-}" ]] && { echo "Usage: hued set bg <color>" >&2; exit 1; }
-        _hued_set_key "background" "$3"
+        color="${3:-}"
+        [[ -z "$color" ]] && { color="$(_hued_read_stdin_color)" || color=""; }
+        [[ -z "$color" ]] && { echo "Usage: hued set bg <color>" >&2; exit 1; }
+        _hued_set_key "background" "$color"
         ;;
       fg|foreground)
-        [[ -z "${3:-}" ]] && { echo "Usage: hued set fg <color>" >&2; exit 1; }
-        _hued_set_key "foreground" "$3"
+        color="${3:-}"
+        [[ -z "$color" ]] && { color="$(_hued_read_stdin_color)" || color=""; }
+        [[ -z "$color" ]] && { echo "Usage: hued set fg <color>" >&2; exit 1; }
+        _hued_set_key "foreground" "$color"
+        ;;
+      "")
+        color="$(_hued_read_stdin_color)" || color=""
+        [[ -z "$color" ]] && { echo "Usage: hued set [bg|fg] <color>" >&2; exit 1; }
+        _hued_set_key "background" "$color"
         ;;
       *)
-        [[ -z "${2:-}" ]] && { echo "Usage: hued set [bg|fg] <color>" >&2; exit 1; }
         _hued_set_key "background" "$2"
         ;;
     esac
     ;;
 
   pack)
-    dir="${2:-$HOME}"
+    shift
+    dir="."
+    if [[ -n "${1:-}" && "$1" != -* ]]; then
+      dir="$1"
+      shift
+    fi
     dir="$(cd "$dir" && pwd)"
     output=""
-    shift 2 || true
     while [[ $# -gt 0 ]]; do
       case "$1" in
         -o) output="${2:-}"; shift 2 ;;
@@ -177,7 +282,7 @@ PYEOF
     ;;
 
   *)
-    echo "Usage: hued [where | set [bg|fg] <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
+    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
     exit 1
     ;;
 esac
