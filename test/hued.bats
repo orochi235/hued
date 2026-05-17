@@ -11,6 +11,37 @@ teardown() {
   rm -rf "$TMPDIR"
 }
 
+# --- reapply ---
+
+@test "reapply: signals zsh, bash, fish with SIGUSR1" {
+  fake_bin="$TMPDIR/fake-bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/pkill" <<EOF
+#!/usr/bin/env bash
+echo "\$@" >> "$TMPDIR/pkill.log"
+exit 0
+EOF
+  chmod +x "$fake_bin/pkill"
+  PATH="$fake_bin:$PATH" run "$HUED" reapply
+  [ "$status" -eq 0 ]
+  grep -q -- '-USR1' "$TMPDIR/pkill.log"
+  grep -q ' zsh$' "$TMPDIR/pkill.log"
+  grep -q ' bash$' "$TMPDIR/pkill.log"
+  grep -q ' fish$' "$TMPDIR/pkill.log"
+}
+
+@test "reapply: exits 0 even when pkill matches nothing" {
+  fake_bin="$TMPDIR/fake-bin"
+  mkdir -p "$fake_bin"
+  cat > "$fake_bin/pkill" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "$fake_bin/pkill"
+  PATH="$fake_bin:$PATH" run "$HUED" reapply
+  [ "$status" -eq 0 ]
+}
+
 # --- no-arg: print current colors ---
 
 @test "no args: fails with no .hued file" {

@@ -109,3 +109,10 @@ teardown() {
   HUED_BACKGROUND="None" run _hued_apply
   [[ "$output" == *"$BG_RESET"* ]]
 }
+
+# --- SIGUSR1 trap ---
+
+@test "SIGUSR1 trap is registered after sourcing" {
+  run trap -p USR1
+  [[ "$output" == *"_hued_apply"* ]]
+}
