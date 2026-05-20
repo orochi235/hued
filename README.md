@@ -85,7 +85,7 @@ hued -i [--live]              # open interactive color picker
 pastel darken 0.2 red | pastel format hex | hued set bg
 ```
 
-`mod` is sugar for the read-transform-write loop. Supported ops:
+`mod` (alias: `adjust`) is sugar for the read-transform-write loop. Supported ops:
 `darken`, `lighten`, `saturate`, `desaturate` (amount as `0.2` or `20%`); `rotate` (`30` or `30deg`); `complement`, `to-gray` (no args); `mix <other-color> [<ratio>]` (ratio defaults to `0.5`).
 
 ```

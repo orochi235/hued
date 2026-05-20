@@ -112,7 +112,7 @@ case "${1:-}" in
     pastel format hex "$raw"
     ;;
 
-  mod)
+  mod|adjust)
     case "${2:-}" in
       bg|background) key="background" ;;
       fg|foreground) key="foreground" ;;
