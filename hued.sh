@@ -14,11 +14,6 @@ else
   _HUED_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fi
 
-# Re-apply on SIGUSR1. A theme-change watcher (e.g. contrib/macos/) sends this
-# when the OS appearance switches, since some terminals reset OSC 10/11 to
-# their profile preset on appearance change.
-trap '_hued_apply' USR1
-
 declare -A _HUED_NAMES
 
 _hued_lookup() {

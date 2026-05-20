@@ -137,23 +137,6 @@ background=none
 **Is hued a daemon?**
 No. Calm down, Tucker.
 
-## Theme-change watcher (macOS, opt-in)
-
-Some terminals (notably iTerm2) reset per-window OSC 10/11 colors back to the
-profile preset when macOS switches between light and dark mode. hued only
-re-emits OSC 10/11 on the next prompt, so the window looks unhued until you
-hit Enter.
-
-Opt in to a tiny LaunchAgent that fixes this:
-
-```sh
-brew services start hued
-```
-
-It runs `hued reapply` on each appearance change, which signals all of your
-interactive shells to re-apply the active `.hued`. Build details and a porting
-guide for other OSes live in [`contrib/macos/`](contrib/macos/README.md).
-
 ## Terminal support
 
 Uses the `\e]11;rgb:RR/GG/BB\a` OSC escape sequence, supported by iTerm2, Terminal.app, Alacritty, Kitty, WezTerm, and most modern terminals.

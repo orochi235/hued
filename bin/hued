@@ -251,20 +251,6 @@ for dirpath, config in data.items():
 PYEOF
     ;;
 
-  reapply)
-    # Signal all interactive shells of this user to re-run _hued_apply.
-    # Used by theme-change watchers (see contrib/<os>/) when the OS toggles
-    # appearance and the terminal resets OSC 10/11 to its profile preset.
-    uid="$(id -u)"
-    sent=0
-    for _shell in zsh bash fish; do
-      if pkill -USR1 -u "$uid" "$_shell" 2>/dev/null; then
-        sent=1
-      fi
-    done
-    [[ "$sent" -eq 1 ]] || exit 0
-    ;;
-
   -i|--interactive)
     _picker="$(dirname "$0")/hued-pick"
     if [[ ! -f "$_picker" ]]; then
@@ -296,7 +282,7 @@ PYEOF
     ;;
 
   *)
-    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | reapply | -i [--live]]" >&2
+    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
     exit 1
     ;;
 esac

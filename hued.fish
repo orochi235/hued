@@ -23,10 +23,6 @@ function _hued_apply_channel --argument-names osc reset_osc value
     end
 end
 
-function _hued_on_sigusr1 --on-signal SIGUSR1
-    _hued_apply
-end
-
 function _hued_apply --on-event fish_prompt
     set bg ""
     set fg ""

@@ -11,8 +11,7 @@ shells out to `pastel` for transforms; named X11 colors come from
 `hued-names.sh`. Interactive picker (`hued -i`) is stdlib-only Python.
 
 Distribution: Homebrew tap (`orochi235/hued`) plus manual install. Must stay
-**platform-agnostic** — anything macOS-specific (e.g. theme-change watcher)
-lives under `contrib/<os>/` and talks to core only via the CLI.
+**platform-agnostic**.
 
 Tests live in `test/` (bats) and `tests/picker/` (pytest). Run with `make` or
 the individual `bats test/*.bats` / `pytest` invocations.
