@@ -71,6 +71,49 @@ teardown() {
   grep -q "foreground=#00ff00" .hued
 }
 
+@test "unset bg: removes background, keeps foreground" {
+  printf "background=#000000\nforeground=#ffffff\n" > .hued
+  run "$HUED" unset bg
+  [ "$status" -eq 0 ]
+  ! grep -q "^background=" .hued
+  grep -q "^foreground=#ffffff" .hued
+}
+
+@test "unset fg: removes foreground, keeps background" {
+  printf "background=#000000\nforeground=#ffffff\n" > .hued
+  run "$HUED" unset fg
+  [ "$status" -eq 0 ]
+  grep -q "^background=#000000" .hued
+  ! grep -q "^foreground=" .hued
+}
+
+@test "unset: accepts long names (background/foreground)" {
+  printf "background=#000000\nforeground=#ffffff\n" > .hued
+  run "$HUED" unset foreground
+  [ "$status" -eq 0 ]
+  ! grep -q "^foreground=" .hued
+}
+
+@test "unset: errors when no .hued exists" {
+  run "$HUED" unset bg
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no .hued"* ]]
+}
+
+@test "unset: errors when channel not set" {
+  printf "background=#000000\n" > .hued
+  run "$HUED" unset fg
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"foreground not set"* ]]
+}
+
+@test "unset: rejects bad channel" {
+  printf "background=#000000\n" > .hued
+  run "$HUED" unset bogus
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Usage: hued unset"* ]]
+}
+
 @test "set: updates existing background without clobbering foreground" {
   printf "background=#000000\nforeground=#ffffff\n" > .hued
   run "$HUED" set bg "#ff0000"

@@ -181,6 +181,22 @@ case "${1:-}" in
     esac
     ;;
 
+  unset)
+    case "${2:-}" in
+      bg|background) key="background" ;;
+      fg|foreground) key="foreground" ;;
+      *) echo "Usage: hued unset [bg|fg]" >&2; exit 1 ;;
+    esac
+    [[ -f .hued ]] || { echo "hued unset: no .hued in ${PWD}" >&2; exit 1; }
+    if ! grep -q "^${key}=" .hued; then
+      echo "hued unset: ${key} not set in ${PWD}/.hued" >&2
+      exit 1
+    fi
+    grep -v "^${key}=" .hued > .hued.tmp || true
+    mv .hued.tmp .hued
+    echo "Unset ${key} in ${PWD}/.hued"
+    ;;
+
   pack)
     shift
     dir="."
@@ -282,7 +298,7 @@ PYEOF
     ;;
 
   *)
-    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
+    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | unset [bg|fg] | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
     exit 1
     ;;
 esac

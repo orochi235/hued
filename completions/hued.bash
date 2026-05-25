@@ -7,8 +7,10 @@ _hued_completion() {
   COMPREPLY=()
 
   if [[ $COMP_CWORD -eq 1 ]]; then
-    mapfile -t COMPREPLY < <(compgen -W "set get mod where resolve pack unpack" -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "set unset get mod where resolve pack unpack" -- "$cur")
   elif [[ $prev == "get" ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "bg fg" -- "$cur")
+  elif [[ $prev == "unset" ]]; then
     mapfile -t COMPREPLY < <(compgen -W "bg fg" -- "$cur")
   elif [[ $prev == "mod" ]]; then
     mapfile -t COMPREPLY < <(compgen -W "bg fg" -- "$cur")

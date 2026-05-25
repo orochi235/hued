@@ -18,6 +18,7 @@ _hued() {
     subcommand)
       local subcommands=(
         'set:create or update .hued in the current directory'
+        'unset:remove a channel from .hued in the current directory'
         'get:print the resolved hex for a channel'
         'mod:apply a pastel transform to a channel and save the result'
         'where:print the path to the controlling .hued file'
@@ -46,6 +47,9 @@ _hued() {
           _describe 'color' colors
           ;;
         get)
+          _describe 'channel' '(bg:"background" fg:"foreground")'
+          ;;
+        unset)
           _describe 'channel' '(bg:"background" fg:"foreground")'
           ;;
         mod)
