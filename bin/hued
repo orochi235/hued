@@ -3,6 +3,8 @@
 
 set -euo pipefail
 
+HUED_VERSION="3.2.1"
+
 _HUED_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 _hued_find() {
@@ -80,6 +82,10 @@ case "${1:-}" in
   "")
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
     grep '^background=\|^foreground=' "$file"
+    ;;
+
+  -v|--version|version)
+    echo "hued $HUED_VERSION"
     ;;
 
   where)
@@ -324,7 +330,7 @@ PYEOF
     ;;
 
   *)
-    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | unset [bg|fg] | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
+    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | unset [bg|fg] | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live] | -v]" >&2
     exit 1
     ;;
 esac

@@ -71,6 +71,24 @@ teardown() {
   grep -q "foreground=#00ff00" .hued
 }
 
+@test "-v: prints version" {
+  run "$HUED" -v
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^hued\ [0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+@test "--version: prints version" {
+  run "$HUED" --version
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^hued\ [0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+@test "version: prints version" {
+  run "$HUED" version
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ^hued\ [0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
 @test "fork: copies inherited bg+fg from ancestor into new ./.hued" {
   printf "background=#112233\nforeground=#aabbcc\n" > .hued
   mkdir sub
