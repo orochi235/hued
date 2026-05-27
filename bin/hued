@@ -181,6 +181,32 @@ case "${1:-}" in
     esac
     ;;
 
+  fork)
+    if [[ -f .hued ]]; then
+      echo "hued fork: ${PWD}/.hued already exists" >&2
+      exit 1
+    fi
+    ancestor=""
+    dir="${PWD%/*}"
+    while [[ "$dir" != / && -n "$dir" ]]; do
+      if [[ -f "$dir/.hued" ]]; then
+        ancestor="$dir/.hued"
+        break
+      fi
+      dir="${dir%/*}"
+    done
+    [[ -z "$ancestor" && -f "/.hued" ]] && ancestor="/.hued"
+    [[ -z "$ancestor" ]] && { echo "hued fork: no ancestor .hued to inherit from" >&2; exit 1; }
+    bg=$({ grep -m1 '^background=' "$ancestor" || true; } | cut -d= -f2 | tr -d '[:space:]')
+    fg=$({ grep -m1 '^foreground=' "$ancestor" || true; } | cut -d= -f2 | tr -d '[:space:]')
+    if [[ -z "$bg" && -z "$fg" ]]; then
+      echo "hued fork: ancestor $ancestor has no background or foreground to inherit" >&2
+      exit 1
+    fi
+    if [[ -n "$bg" ]]; then _hued_set_key "background" "$bg"; fi
+    if [[ -n "$fg" ]]; then _hued_set_key "foreground" "$fg"; fi
+    ;;
+
   unset)
     case "${2:-}" in
       bg|background) key="background" ;;
@@ -298,7 +324,7 @@ PYEOF
     ;;
 
   *)
-    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | unset [bg|fg] | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
+    echo "Usage: hued [where | get [bg|fg] | set [bg|fg] <color> | unset [bg|fg] | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live]]" >&2
     exit 1
     ;;
 esac

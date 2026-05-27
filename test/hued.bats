@@ -71,6 +71,52 @@ teardown() {
   grep -q "foreground=#00ff00" .hued
 }
 
+@test "fork: copies inherited bg+fg from ancestor into new ./.hued" {
+  printf "background=#112233\nforeground=#aabbcc\n" > .hued
+  mkdir sub
+  cd sub
+  run "$HUED" fork
+  [ "$status" -eq 0 ]
+  grep -q "^background=#112233" .hued
+  grep -q "^foreground=#aabbcc" .hued
+}
+
+@test "fork: copies only the channels the ancestor defines" {
+  printf "background=#112233\n" > .hued
+  mkdir sub
+  cd sub
+  run "$HUED" fork
+  [ "$status" -eq 0 ]
+  grep -q "^background=#112233" .hued
+  ! grep -q "^foreground=" .hued
+}
+
+@test "fork: errors if ./.hued already exists" {
+  printf "background=#112233\n" > .hued
+  mkdir sub
+  printf "background=#445566\n" > sub/.hued
+  cd sub
+  run "$HUED" fork
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"already exists"* ]]
+  grep -q "^background=#445566" .hued
+}
+
+@test "fork: errors when no ancestor .hued exists" {
+  run "$HUED" fork
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no ancestor"* ]]
+}
+
+@test "fork: walks past intermediate dirs without .hued" {
+  printf "background=#112233\n" > .hued
+  mkdir -p a/b/c
+  cd a/b/c
+  run "$HUED" fork
+  [ "$status" -eq 0 ]
+  grep -q "^background=#112233" .hued
+}
+
 @test "unset bg: removes background, keeps foreground" {
   printf "background=#000000\nforeground=#ffffff\n" > .hued
   run "$HUED" unset bg

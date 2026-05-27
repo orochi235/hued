@@ -19,6 +19,7 @@ _hued() {
       local subcommands=(
         'set:create or update .hued in the current directory'
         'unset:remove a channel from .hued in the current directory'
+        'fork:materialize inherited colors into a new .hued in the current directory'
         'get:print the resolved hex for a channel'
         'mod:apply a pastel transform to a channel and save the result'
         'where:print the path to the controlling .hued file'

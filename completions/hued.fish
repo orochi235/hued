@@ -1,10 +1,11 @@
 set -l names_file "$HOMEBREW_PREFIX/share/hued-names.sh"
-set -l subcommands set unset get mod where resolve pack unpack
+set -l subcommands set unset fork get mod where resolve pack unpack
 set -l mod_ops darken lighten saturate desaturate rotate complement to-gray mix
 
 complete -c hued -f
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "set"     -d "Create or update .hued in the current directory"
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "unset"   -d "Remove a channel from .hued in the current directory"
+complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "fork"    -d "Materialize inherited colors into a new .hued in the current directory"
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "get"     -d "Print the resolved hex for a channel"
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "mod"     -d "Apply a pastel transform to a channel and save the result"
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "where"   -d "Print the path to the controlling .hued file"
