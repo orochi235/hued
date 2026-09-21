@@ -11,8 +11,8 @@ _hued_colors() {
   grep -o '^ *\[[^]]*\]' "$names_file" | tr -d '[] ' | grep -v '^xkcd:'
 }
 
-_HUED_KEYS="bg fg accent branch-hue branch-lightness branch-chroma"
-_HUED_KEY_DESCRIPTIONS='bg\:"background color" fg\:"foreground color" accent\:"accent color" branch-hue\:"branch minting hue range" branch-lightness\:"branch minting lightness range" branch-chroma\:"branch minting chroma range"'
+_HUED_KEYS="bg fg accent branch-hue branch-lightness branch-chroma sfkey"
+_HUED_KEY_DESCRIPTIONS='bg\:"background color" fg\:"foreground color" accent\:"accent color" branch-hue\:"branch minting hue range" branch-lightness\:"branch minting lightness range" branch-chroma\:"branch minting chroma range" sfkey\:"SF Symbol name"'
 
 _hued() {
   local state
@@ -74,7 +74,7 @@ _hued() {
       case $words[2] in
         set)
           case $words[3] in
-            branch-hue|branch-lightness|branch-chroma) ;;
+            branch-hue|branch-lightness|branch-chroma|sfkey) ;;
             *)
               local colors=("${(@f)$(_hued_colors)}")
               _describe 'color' colors

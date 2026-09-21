@@ -200,9 +200,18 @@ _complete() {
 
 @test "completions: all three shells offer the new keys" {
   for f in completions/hued.bash completions/hued.fish completions/_hued; do
-    for key in accent branch-hue branch-lightness branch-chroma; do
+    for key in accent branch-hue branch-lightness branch-chroma sfkey; do
       grep -qF "$key" "$BATS_TEST_DIRNAME/../$f" || {
         echo "missing $key in $f"; return 1; }
     done
   done
+}
+
+@test "set sfkey: does not complete color names" {
+  prefix="$(mktemp -d)"
+  mkdir -p "$prefix/share"
+  cp "$BATS_TEST_DIRNAME/../hued-names.sh" "$prefix/share/hued-names.sh"
+  HOMEBREW_PREFIX="$prefix" _complete hued set sfkey "le"
+  rm -rf "$prefix"
+  [[ "${COMPREPLY[*]}" != *"lemon"* ]]
 }

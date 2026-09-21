@@ -202,8 +202,8 @@ _hued_read_stdin_color() {
 }
 
 # The keys `.hued` understands. Color keys hold a color; policy keys hold a
-# minting range consumed by external tools — hued itself renders neither yet.
-_HUED_KEY_LIST="bg|fg|accent|branch-hue|branch-lightness|branch-chroma"
+# minting range and text keys a bare token, both for external tools.
+_HUED_KEY_LIST="bg|fg|accent|branch-hue|branch-lightness|branch-chroma|sfkey"
 
 # Canonicalize a key argument, or return 1 if it is not one of ours.
 _hued_key() {
@@ -211,12 +211,13 @@ _hued_key() {
     bg|background) printf 'background' ;;
     fg|foreground) printf 'foreground' ;;
     accent) printf 'accent' ;;
-    branch-hue|branch-lightness|branch-chroma) printf '%s' "$1" ;;
+    branch-hue|branch-lightness|branch-chroma|sfkey) printf '%s' "$1" ;;
     *) return 1 ;;
   esac
 }
 
 _hued_is_policy_key() { [[ "$1" == branch-* ]]; }
+_hued_is_text_key() { [[ "$1" == sfkey ]]; }
 
 # Validate one endpoint of a policy range, printing "<canonical>|<signed>".
 # Prints its own error and returns 1 on failure.
@@ -287,7 +288,7 @@ _hued_set_key() {
   echo "Set ${key} to ${color} in ${PWD}/.hued"
 }
 
-_hued_set_policy_key() {
+_hued_set_raw_key() {
   local key="$1" value="$2"
   _hued_put_line "$key" "${key}=${value}"
   echo "Set ${key} to ${value} in ${PWD}/.hued"
@@ -434,9 +435,9 @@ case "${1:-}" in
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
     raw=$({ grep -m1 "^${key}=" "$file" || true; } | cut -d= -f2 | awk '{print $1}')
     [[ -z "$raw" ]] && exit 1
-    if _hued_is_policy_key "$key"; then
+    if _hued_is_policy_key "$key" || _hued_is_text_key "$key"; then
       [[ "${3:-}" == "--name" ]] && {
-        echo "hued get: --name names a color; ${key} holds a range" >&2
+        echo "hued get: --name names a color; ${key} does not hold one" >&2
         exit 1
       }
       printf '%s\n' "$raw"
@@ -491,7 +492,14 @@ case "${1:-}" in
       [[ -z "$value" ]] && { echo "Usage: hued set ${given} <value>" >&2; exit 1; }
       if _hued_is_policy_key "$key"; then
         value=$(_hued_policy_value "hued set" "$key" "$value") || exit 1
-        _hued_set_policy_key "$key" "$value"
+        _hued_set_raw_key "$key" "$value"
+      elif _hued_is_text_key "$key"; then
+        # Parsers keep only the first token of a value.
+        [[ "$value" =~ ^[^[:space:]#]+$ ]] || {
+          echo "hued set: '$value' is not a valid ${key} value (one token, no spaces or #)" >&2
+          exit 1
+        }
+        _hued_set_raw_key "$key" "$value"
       else
         _hued_set_key "$key" "$value"
       fi
@@ -641,6 +649,8 @@ def normalize(value):
         return hexv, v
     return v, None
 
+COLOR_KEYS = {'background', 'foreground', 'accent'}
+
 with open(file) as f:
     data = json.load(f)
 
@@ -653,6 +663,9 @@ for dirpath, config in data.items():
     with open(hued_path, 'w') as f:
         f.write('# https://github.com/orochi235/hued\n')
         for k, v in config.items():
+            if k not in COLOR_KEYS:
+                f.write(f'{k}={v}\n')
+                continue
             hexv, name = normalize(v)
             if name:
                 f.write(f'{k}={hexv}  # {name}\n')

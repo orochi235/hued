@@ -56,18 +56,21 @@ accent=#ccff00              # a highlight color, for tools that draw one
 branch-hue=+30deg..+90deg   # the range a per-branch color is minted from
 branch-lightness=22%..38%
 branch-chroma=70%..100%
+sfkey=paintbrush.pointed.fill  # an SF Symbol name, for tools that draw an icon
 ```
 
 `accent` is a color like the other two, names and all. The `branch-*` keys are
 ranges: a signed endpoint is relative to this repo's own color, an unsigned one
 is absolute, and a range has to be all one or the other — the same rule `mod`
-uses. A lone value stands for a degenerate range.
+uses. A lone value stands for a degenerate range. `sfkey` is stored as given,
+even when it happens to be a color name too, like `leaf`.
 
 `get`, `set` and `unset` take any of these keys:
 
 ```zsh
 hued set accent limegreen        # accent=#32cd32  # limegreen
 hued set branch-hue +30deg..+90deg
+hued set sfkey leaf
 hued get accent --name           # limegreen
 hued unset branch-chroma
 ```

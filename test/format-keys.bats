@@ -248,3 +248,55 @@ teardown() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"Usage: hued unset"* ]]
 }
+
+# --- sfkey: an SF Symbol name, stored as text ---
+
+@test "set sfkey: stores the name verbatim" {
+  run "$HUED" set sfkey paintbrush.pointed.fill
+  [ "$status" -eq 0 ]
+  grep -qx "sfkey=paintbrush.pointed.fill" .hued
+}
+
+@test "set sfkey: a name that is also a color stays a name" {
+  run "$HUED" set sfkey leaf
+  [ "$status" -eq 0 ]
+  grep -qx "sfkey=leaf" .hued
+}
+
+@test "set sfkey: rejects whitespace" {
+  run "$HUED" set sfkey "leaf fill"
+  [ "$status" -eq 1 ]
+  [ ! -f .hued ]
+}
+
+@test "get sfkey: prints the stored name" {
+  printf "background=#470013\nsfkey=leaf\n" > .hued
+  run "$HUED" get sfkey
+  [ "$status" -eq 0 ]
+  [ "$output" = "leaf" ]
+}
+
+@test "get sfkey: --name is rejected" {
+  printf "sfkey=leaf\n" > .hued
+  run "$HUED" get sfkey --name
+  [ "$status" -eq 1 ]
+}
+
+@test "unset sfkey: removes it, keeps background" {
+  printf "background=#470013\nsfkey=leaf\n" > .hued
+  run "$HUED" unset sfkey
+  [ "$status" -eq 0 ]
+  ! grep -q "^sfkey=" .hued
+  grep -q "^background=#470013" .hued
+}
+
+# --- unpack only treats color keys as colors ---
+
+@test "unpack: non-color values that look like color names are kept" {
+  printf '{"%s/r": {"background": "leaf", "sfkey": "leaf", "branch-hue": "30deg..90deg"}}' "$TMPDIR" > export.json
+  run "$HUED" unpack export.json
+  [ "$status" -eq 0 ]
+  grep -qx "sfkey=leaf" r/.hued
+  grep -qx "branch-hue=30deg..90deg" r/.hued
+  grep -q "^background=#" r/.hued
+}

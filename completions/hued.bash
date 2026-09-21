@@ -5,7 +5,7 @@ _hued_completion() {
   pprev="${COMP_WORDS[COMP_CWORD-2]:-}"
   names_file="${HOMEBREW_PREFIX:-/opt/homebrew}/share/hued-names.sh"
   mod_ops="darken lighten saturate desaturate rotate complement to-gray mix lightness saturation hue"
-  keys="bg fg accent branch-hue branch-lightness branch-chroma"
+  keys="bg fg accent branch-hue branch-lightness branch-chroma sfkey"
   color_keys="bg fg accent"
   COMPREPLY=()
 
