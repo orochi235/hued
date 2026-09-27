@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Callable, Optional
-from src.picker.frame import Frame
-from src.picker.colors import RGB
+from ..frame import Frame
+from ..colors import RGB
 
 LABEL_W = 2   # "R " — label is padded/truncated to this width
 VALUE_W = 4   # " 123" — right-aligned value, 4 chars wide

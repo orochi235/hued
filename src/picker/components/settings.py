@@ -1,6 +1,6 @@
 from __future__ import annotations
-from src.picker.frame import Frame
-from src.picker.colors import RGB
+from ..frame import Frame
+from ..colors import RGB
 
 _CYAN = RGB(0, 255, 255)
 _DIM = RGB(128, 128, 128)

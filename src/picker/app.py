@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Literal, Optional
 
-from src.picker.colors import RGB
+from .colors import RGB
 
 
 class Action(Enum):
@@ -64,14 +64,14 @@ def initial_state(initial_bg: RGB, initial_fg: RGB, live: bool) -> State:
 
 import math
 
-from src.picker.colors import (
+from .colors import (
     rgb_to_hsl, hsl_to_rgb, HSL,
     rgb_to_oklch, oklch_to_rgb, OKLCH,
     rgb_to_lab, lab_to_rgb, Lab,
     hex_to_rgb, rgb_to_hex,
 )
-from src.picker.keys import Key, KeyEvent
-from src.picker.names import NAMED_COLORS, XKCD_OVERRIDES
+from .keys import Key, KeyEvent
+from .names import NAMED_COLORS, XKCD_OVERRIDES
 
 # Active palette for this run. main() merges XKCD_OVERRIDES in under --xkcd.
 _PALETTE: dict[str, str] = dict(NAMED_COLORS)
@@ -202,7 +202,7 @@ def update(
 
     Mirrors the TS useInput handler in App.tsx:120-241 branch-for-branch.
     """
-    from src.picker.components.slicer import VIEWS
+    from .components.slicer import VIEWS
 
     k = event.key
     ch = event.char or ""
@@ -427,7 +427,7 @@ def update(
         num_cols_sw = max(1, (se_pane_w - 2) // 5)
 
         # Build the filtered+sorted entry list (same logic as render_swatch_browser)
-        from src.picker.components.swatch_browser import sort_entries
+        from .components.swatch_browser import sort_entries
         all_entries = list(_PALETTE.items())
         filtered = [(n, h) for n, h in all_entries
                     if state.filter.lower() in n.lower()]
@@ -471,9 +471,9 @@ def update(
     return state, Action.CONTINUE
 
 
-from src.picker.frame import Frame
-from src.picker.term import ansi_truecolor_fg
-from src.picker.colors import nearest_name
+from .frame import Frame
+from .term import ansi_truecolor_fg
+from .colors import nearest_name
 
 # Color constants for pane borders
 _GRAY   = RGB(128, 128, 128)
@@ -494,7 +494,7 @@ def _build_channels(model: str, rgb: RGB) -> list[dict]:
     Each dict has: label (str), value (int), max (int), get_color (callable).
     Mirrors the rgbChannels/hslChannels/oklchChannels/labChannels arrays in App.tsx.
     """
-    from src.picker.colors import (
+    from .colors import (
         rgb_to_hsl, hsl_to_rgb, HSL,
         rgb_to_oklch, oklch_to_rgb, OKLCH,
         rgb_to_lab, lab_to_rgb, Lab,
@@ -580,12 +580,12 @@ def render(state: State, cols: int, rows: int) -> Frame:
       Rows half_h+1..-2:  SW pane (left) and SE pane (right)
       Row rows-1:         footer
     """
-    from src.picker.components.slider import render_slider
-    from src.picker.components.settings import render_settings
-    from src.picker.components.preview import render_terminal_preview
-    from src.picker.components.swatch_browser import render_swatch_browser
-    from src.picker.components.slicer import render_color_slicer
-    from src.picker.colors import rgb_to_hex
+    from .components.slider import render_slider
+    from .components.settings import render_settings
+    from .components.preview import render_terminal_preview
+    from .components.swatch_browser import render_swatch_browser
+    from .components.slicer import render_color_slicer
+    from .colors import rgb_to_hex
 
     frame = Frame(cols, rows)
 
@@ -805,10 +805,10 @@ def run(
       - Write .hued output file on confirm
 
     This function is NOT unit-tested. It is exercised by the Phase 5
-    interactive smoke test via `python3 -m src.picker --app`.
+    interactive smoke test via `python3 -m picker --app`.
     """
-    import src.picker.term as t
-    from src.picker.colors import rgb_to_hex
+    from . import term as t
+    from .colors import rgb_to_hex
 
     state = initial_state(initial_bg, initial_fg, live)
 
@@ -901,12 +901,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     """CLI entry point for the picker.
 
     Usage:
-      python3 -m src.picker --app [--bg #rrggbb] [--fg #rrggbb] [--live] [--output PATH]
+      python3 -m picker --app [--bg #rrggbb] [--fg #rrggbb] [--live] [--output PATH]
 
     Exit codes: 0 = color confirmed and written, 1 = cancelled.
     """
     import argparse
-    from src.picker.colors import hex_to_rgb, rgb_to_hex
+    from .colors import hex_to_rgb, rgb_to_hex
 
     parser = argparse.ArgumentParser(
         prog="hued-pick",

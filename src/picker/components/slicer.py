@@ -2,8 +2,8 @@ from __future__ import annotations
 import math
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
-from src.picker.frame import Frame
-from src.picker.colors import (
+from ..frame import Frame
+from ..colors import (
     RGB, HSL, OKLCH, Lab,
     rgb_to_hex, hex_to_rgb,
     rgb_to_hsl, hsl_to_rgb,

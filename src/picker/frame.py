@@ -3,8 +3,8 @@ import sys
 from dataclasses import dataclass
 from typing import IO, Optional
 
-from src.picker.colors import RGB
-from src.picker.term import (
+from .colors import RGB
+from .term import (
     ansi_truecolor_bg,
     ansi_truecolor_fg,
     ansi_reset,

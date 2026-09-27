@@ -1,8 +1,8 @@
 from __future__ import annotations
 import math
 from typing import List, Tuple
-from src.picker.frame import Frame
-from src.picker.colors import RGB, hex_to_rgb, rgb_to_hsl
+from ..frame import Frame
+from ..colors import RGB, hex_to_rgb, rgb_to_hsl
 
 _CYAN = RGB(0, 255, 255)
 _DIM = RGB(128, 128, 128)

@@ -188,3 +188,11 @@ STUB
   [ "$status" -eq 0 ]
   [[ "$output" =~ --xkcd ]]
 }
+
+@test "bin/hued-pick runs from a directory that is not the repo root" {
+  tmpdir=$(mktemp -d)
+  run bash -c "cd '$tmpdir' && '$HUED_PICK' --help 2>&1"
+  rm -rf "$tmpdir"
+  [ "$status" -eq 0 ]
+  [[ ! "$output" =~ ModuleNotFoundError ]]
+}

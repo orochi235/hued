@@ -12,10 +12,10 @@ import sys
 def main() -> int:
     if "--smoke" in sys.argv:
         # Phase 2 smoke test path — development only, not invoked by the shim
-        from src.picker import term as t
-        from src.picker.colors import hex_to_rgb
-        from src.picker.frame import Frame
-        from src.picker.names import NAMED_COLORS
+        from . import term as t
+        from .colors import hex_to_rgb
+        from .frame import Frame
+        from .names import NAMED_COLORS
 
         first_name = next(iter(NAMED_COLORS))
         first_hex = NAMED_COLORS[first_name]
@@ -50,15 +50,15 @@ def main() -> int:
         return 0
 
     # Default: launch the interactive picker (Phase 4 app)
-    from src.picker.app import main as app_main
+    from .app import main as app_main
     return app_main()
 
 
 def _smoke_render(cols: int, rows: int, first_name: str, first_hex: str) -> None:
-    from src.picker.colors import hex_to_rgb
-    from src.picker.colors import RGB
-    from src.picker.frame import Frame
-    from src.picker import term as t
+    from .colors import hex_to_rgb
+    from .colors import RGB
+    from .frame import Frame
+    from . import term as t
 
     SWATCH_HEXES = ["#ff5555", "#ffaa55", "#ffff55", "#55ff55",
                     "#55ffff", "#5555ff", "#aa55ff", "#ff55aa"]

@@ -8,7 +8,7 @@ import shutil
 import signal
 from contextlib import contextmanager
 from typing import IO, Iterator, Callable, Optional
-from src.picker.keys import Key, KeyEvent
+from .keys import Key, KeyEvent
 
 
 _ARROW = {"A": Key.ARROW_UP, "B": Key.ARROW_DOWN,
