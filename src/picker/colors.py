@@ -95,42 +95,50 @@ def _clamp_u8(x: float) -> int:
     return max(0, min(255, round(x)))
 
 
-def rgb_to_oklch(rgb: RGB) -> OKLCH:
+def _cbrt(v: float) -> float:
+    return v ** (1 / 3) if v >= 0 else -((-v) ** (1 / 3))
+
+
+def rgb_to_oklab(rgb: RGB) -> tuple[float, float, float]:
     rl, gl, bl = _linearize(rgb.r), _linearize(rgb.g), _linearize(rgb.b)
-    l = 0.4122214708 * rl + 0.5363325363 * gl + 0.0514459929 * bl
-    m = 0.2119034982 * rl + 0.6806995451 * gl + 0.1073969566 * bl
-    s = 0.0883024619 * rl + 0.2817188376 * gl + 0.6299787005 * bl
-    l_, m_, s_ = l ** (1 / 3) if l >= 0 else -((-l) ** (1 / 3)), \
-                 m ** (1 / 3) if m >= 0 else -((-m) ** (1 / 3)), \
-                 s ** (1 / 3) if s >= 0 else -((-s) ** (1 / 3))
-    L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
-    a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
-    bk = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
-    C = math.sqrt(a * a + bk * bk)
+    l_ = _cbrt(0.4122214708 * rl + 0.5363325363 * gl + 0.0514459929 * bl)
+    m_ = _cbrt(0.2119034982 * rl + 0.6806995451 * gl + 0.1073969566 * bl)
+    s_ = _cbrt(0.0883024619 * rl + 0.2817188376 * gl + 0.6299787005 * bl)
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
+
+
+def oklab_to_linear(L: float, a: float, b: float) -> tuple[float, float, float]:
+    """Linear sRGB, unclamped: a channel outside 0..1 means out of gamut."""
+    l_c = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+    m_c = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+    s_c = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3
+    return (
+        +4.0767416621 * l_c - 3.3077115913 * m_c + 0.2309699292 * s_c,
+        -1.2684380046 * l_c + 2.6097574011 * m_c - 0.3413193965 * s_c,
+        -0.0041960863 * l_c - 0.7034186147 * m_c + 1.7076147010 * s_c,
+    )
+
+
+def linear_to_rgb(linear: tuple[float, float, float]) -> RGB:
+    return RGB(*(_clamp_u8(_delinearize(max(0.0, v)) * 255) for v in linear))
+
+
+def rgb_to_oklch(rgb: RGB) -> OKLCH:
+    L, a, bk = rgb_to_oklab(rgb)
     H = math.degrees(math.atan2(bk, a))
     if H < 0:
         H += 360
-    return OKLCH(round(L * 100), round(C * 1000), round(H))
+    return OKLCH(round(L * 100), round(math.hypot(a, bk) * 1000), round(H))
 
 
 def oklch_to_rgb(oklch: OKLCH) -> RGB:
-    L = oklch.l / 100
     C = oklch.c / 1000
-    H = oklch.h
-    a = C * math.cos(math.radians(H))
-    bk = C * math.sin(math.radians(H))
-    l_ = L + 0.3963377774 * a + 0.2158037573 * bk
-    m_ = L - 0.1055613458 * a - 0.0638541728 * bk
-    s_ = L - 0.0894841775 * a - 1.2914855480 * bk
-    l_c, m_c, s_c = l_ ** 3, m_ ** 3, s_ ** 3
-    rl = +4.0767416621 * l_c - 3.3077115913 * m_c + 0.2309699292 * s_c
-    gl = -1.2684380046 * l_c + 2.6097574011 * m_c - 0.3413193965 * s_c
-    bl = -0.0041960863 * l_c - 0.7034186147 * m_c + 1.7076147010 * s_c
-    return RGB(
-        _clamp_u8(_delinearize(rl) * 255),
-        _clamp_u8(_delinearize(gl) * 255),
-        _clamp_u8(_delinearize(bl) * 255),
-    )
+    return linear_to_rgb(oklab_to_linear(
+        oklch.l / 100, C * math.cos(math.radians(oklch.h)), C * math.sin(math.radians(oklch.h))))
 
 
 @dataclass(frozen=True)

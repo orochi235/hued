@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# hued-py — run one of hued's Python packages: hued-py <package> [<args>...]
+#
+# PYTHONPATH resolution order:
+#   1. <prefix>/libexec/hued/  — brew-installed location (packages are subdirs)
+#   2. <repo-root>/src/         — source-tree location
+#   3. Error.
+set -euo pipefail
+
+# Resolve $0 through any symlinks (e.g. /opt/homebrew/bin/hued-py ->
+# Cellar/hued/X.Y.Z/bin/hued-py) so we walk up from the real keg, not
+# from /opt/homebrew where libexec/ doesn't have our files.
+_self="$0"
+while [[ -L "$_self" ]]; do
+  _link="$(readlink "$_self")"
+  case "$_link" in
+    /*) _self="$_link" ;;
+    *)  _self="$(dirname "$_self")/$_link" ;;
+  esac
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
+PREFIX_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+[[ $# -ge 1 ]] || { echo "Usage: hued-py <package> [<args>...]" >&2; exit 1; }
+_pkg="${1%%.*}"
+
+if [[ -d "$PREFIX_DIR/libexec/hued/$_pkg" ]]; then
+  export PYTHONPATH="$PREFIX_DIR/libexec/hued${PYTHONPATH:+:$PYTHONPATH}"
+elif [[ -d "$PREFIX_DIR/src/$_pkg" ]]; then
+  export PYTHONPATH="$PREFIX_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+else
+  printf 'hued-py: cannot find %s package\n' "$_pkg" >&2
+  printf '  looked for: %s/libexec/hued/%s\n' "$PREFIX_DIR" "$_pkg" >&2
+  printf '              %s/src/%s\n' "$PREFIX_DIR" "$_pkg" >&2
+  exit 1
+fi
+
+exec python3 -m "$@"
