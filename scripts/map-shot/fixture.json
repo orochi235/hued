@@ -1,0 +1,163 @@
+{
+  "anchor": {
+    "background": "#00e1ff"
+  },
+  "bramble": {
+    "background": "#8993f2",
+    "sfkey": "cube.transparent"
+  },
+  "cinder": {
+    "background": "#5b92d9",
+    "sfkey": "tag"
+  },
+  "dapple": {
+    "background": "#fa8072"
+  },
+  "group/ember": {
+    "background": "#320053",
+    "sfkey": "brain"
+  },
+  "fathom": {
+    "background": "#ffff00",
+    "sfkey": "square.stack.3d.up"
+  },
+  "gantry": {
+    "background": "#075d13"
+  },
+  "harbor": {
+    "background": "#222222"
+  },
+  "inkwell": {
+    "background": "#006464",
+    "sfkey": "baseball"
+  },
+  "juniper": {
+    "background": "#addd1d",
+    "sfkey": "puzzlepiece.fill"
+  },
+  "kestrel": {
+    "background": "#b31077",
+    "sfkey": "swatchpalette"
+  },
+  "lantern": {
+    "background": "#ffffc4",
+    "sfkey": "light.beacon.max"
+  },
+  "marrow": {
+    "background": "#7b0000"
+  },
+  "group/nettle": {
+    "background": "#5b9cd9",
+    "sfkey": "rectangle.and.pencil.and.ellipsis"
+  },
+  "orchard": {
+    "background": "#916004",
+    "sfkey": "camera.viewfinder"
+  },
+  "pumice": {
+    "background": "#2490ac"
+  },
+  "quarry": {
+    "background": "#245dac"
+  },
+  "rudder": {
+    "background": "#ff0000",
+    "sfkey": "smoke.fill"
+  },
+  "saffron": {
+    "background": "#000049"
+  },
+  "thimble": {
+    "background": "#6a5acd",
+    "sfkey": "printer.dotmatrix"
+  },
+  "group/umber/packages/a-rather-long-nested-name": {
+    "background": "#7fff00",
+    "sfkey": "rectangle.3.group"
+  },
+  "vellum": {
+    "background": "#eeb48d",
+    "sfkey": "menubar.arrow.up.rectangle"
+  },
+  "group/wicket": {
+    "background": "#b05824",
+    "sfkey": "square.grid.4x3.fill"
+  },
+  "yarrow": {
+    "background": "#05056d",
+    "sfkey": "sparkles"
+  },
+  "zephyr": {
+    "background": "#e2ca76",
+    "sfkey": "globe.americas"
+  },
+  "alder": {
+    "background": "#541515"
+  },
+  "basalt": {
+    "background": "#8833dd"
+  },
+  "cobalt": {
+    "background": "#995400"
+  },
+  "drift": {
+    "background": "#333333"
+  },
+  "easel": {
+    "background": "#785f8b"
+  },
+  "anchor-2": {
+    "background": "#daa520"
+  },
+  "group/bramble-2": {
+    "background": "#003333"
+  },
+  "cinder-2": {
+    "background": "#00ffff"
+  },
+  "dapple-2": {
+    "background": "#1fa774"
+  },
+  "ember-2": {
+    "background": "#074007"
+  },
+  "fathom-2": {
+    "background": "#1e4764"
+  },
+  "gantry-2": {
+    "background": "#085f5b"
+  },
+  "harbor-2": {
+    "background": "#004c88",
+    "sfkey": "character.book.closed"
+  },
+  "inkwell-2": {
+    "background": "#01a049",
+    "sfkey": "mountain.2"
+  },
+  "juniper-2": {
+    "background": "#b03712"
+  },
+  "group/kestrel-2": {
+    "background": "#b9a281",
+    "sfkey": "photo.stack"
+  },
+  "lantern-2": {
+    "background": "#470013",
+    "sfkey": "pencil.and.outline"
+  },
+  "marrow-2": {
+    "background": "#995400"
+  },
+  "nettle-2": {
+    "background": "#3a4c6c",
+    "sfkey": "uiwindow.split.2x1"
+  },
+  "orchard-2": {
+    "background": "#ffa500",
+    "sfkey": "chart.pie"
+  },
+  "textonly": {
+    "foreground": "#99ffff"
+  }
+}

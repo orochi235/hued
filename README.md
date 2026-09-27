@@ -140,6 +140,7 @@ hued apply                        # repaint the terminal to match the current .h
 hued resolve <color>              # print canonical #rrggbb for a color (requires pastel)
 hued pack [<dir>] [-o <file>]     # export all .hued files under <dir> to JSON
 hued unpack <file> [--force]      # restore .hued files from a JSON export
+hued map [<dir>] [--no-open]      # pick an unused color from a page of the ones in use
 hued -i [--live]                  # open interactive color picker
 ```
 
@@ -179,7 +180,50 @@ Ops:
 - `lightness`, `saturation` — `<value>`, e.g. `40%`, `+10%`
 - `hue` — `<degrees>`, e.g. `200deg`, `+30deg`
 
-`pack` defaults to the current directory if none is given. `unpack` skips existing `.hued` files unless `--force` is passed. `get`, `mod`, and `resolve` all shell out to [`pastel`](https://github.com/sharkdp/pastel) (`brew install pastel`); `pastel` accepts named colors, hex, `rgb()`, `hsl()`, etc.
+`pack` defaults to the current directory if none is given, and does not look inside `.git`, `node_modules`, `.venv`, `venv` or `__pycache__`. `unpack` skips existing `.hued` files unless `--force` is passed. `get`, `mod`, and `resolve` all shell out to [`pastel`](https://github.com/sharkdp/pastel) (`brew install pastel`); `pastel` accepts named colors, hex, `rgb()`, `hsl()`, etc.
+
+## Picking a color nothing else uses
+
+`hued map` answers "which colors are already taken?" before you choose one for a
+new project. Run it in the directory you want to color:
+
+```zsh
+cd ~/src/newrepo
+hued map            # scans ~/src, opens a page in your browser, waits
+```
+
+The page plots every `background` found under the scanned directory, hue left
+to right and lightness bottom to top, with grays in a column of their own.
+
+- **Widest gaps** are six suggestions: the colors farthest from everything in
+  use. Limit them to dark or light colors with the control under the map.
+- **Click the map** for five swatches at that hue and lightness: vivid, medium,
+  muted, lighter and darker.
+- A swatch that would be hard to tell apart from an existing one says
+  "close to" and names it.
+- **Symbol** sets `sfkey`, and marks a symbol another directory already uses.
+
+"Use this" writes `.hued` in the directory you ran the command from and the
+command exits. It writes `background`, `sfkey` if you chose one, and
+`foreground=#000000` when the background is light enough to need dark text.
+Other keys already in the file are kept. Closing the tab or pressing Ctrl-C
+exits without writing.
+
+```
+hued map [<dir>] [--no-open]
+```
+
+`<dir>` is the directory to scan, the parent of the current one by default.
+`--no-open` prints the page's URL instead of opening a browser.
+
+The page is served from your own machine, on the loopback address only, for as
+long as the command runs.
+
+On macOS with the Xcode command-line tools installed, the page draws each
+symbol and searches Apple's symbol names as you type. Elsewhere symbols are
+shown by name.
+
+**Requirements:** Python 3.9 or later.
 
 ## Interactive picker
 

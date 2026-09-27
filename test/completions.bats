@@ -215,3 +215,25 @@ _complete() {
   rm -rf "$prefix"
   [[ "${COMPREPLY[*]}" != *"lemon"* ]]
 }
+
+# --- map ---
+
+@test "completes map as a subcommand" {
+  _complete hued "ma"
+  [[ " ${COMPREPLY[*]} " == *" map "* ]]
+}
+
+@test "map: suggests --no-open" {
+  _complete hued map "--"
+  [[ "${COMPREPLY[*]}" == *"--no-open"* ]]
+  _complete hued map "somedir" ""
+  [[ "${COMPREPLY[*]}" == *"--no-open"* ]]
+}
+
+@test "map: every completion script knows the command" {
+  cd "$BATS_TEST_DIRNAME/.."
+  for f in completions/hued.bash completions/hued.fish completions/_hued; do
+    grep -q -- '--no-open' "$f"
+    grep -qw 'map' "$f"
+  done
+}

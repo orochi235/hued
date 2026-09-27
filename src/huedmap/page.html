@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>hued map</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f5f5f7; --panel: #ffffff; --border: #d1d1d6; --text: #1d1d1f; --dim: #6e6e73;
+    --accent: #0071e3; --hover: #e8f4fd; --warn: #b25000; --canvas: #161618;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1d1d1f; --panel: #2d2d2f; --border: #424245; --text: #f5f5f7; --dim: #98989d;
+      --accent: #0a84ff; --hover: #0a84ff26; --warn: #ff9f0a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--text);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--dim); margin: 0 0 16px; }
+  code { font-family: var(--mono); font-size: 0.92em; }
+  .label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+
+  canvas { width: 100%; display: block; border-radius: 8px; cursor: crosshair; background: var(--canvas); }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: 12px 0 20px; }
+  .bar .label { margin: 0; }
+  .bar label { display: inline-flex; gap: 4px; align-items: center; }
+  .readout { margin-inline-start: auto; text-align: end; min-width: 40ch; min-height: 1.45em;
+             font: 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--dim); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .tray { display: flex; flex-wrap: wrap; gap: 10px; min-height: 128px; align-content: flex-start; }
+  .empty { color: var(--dim); }
+  .swatch { width: 128px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer;
+            background: var(--panel); font: 11px/1.5 var(--mono); font-variant-numeric: tabular-nums; }
+  .swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .swatch.sel { outline: 3px solid var(--accent); }
+  .swatch .block { height: 52px; background: var(--c); }
+  .swatch .meta { padding: 6px 8px; color: var(--dim); }
+  .swatch .hex { color: var(--text); }
+  .swatch .who { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .warn { color: var(--warn); }
+
+  .panel { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 20px; margin-top: 24px; padding: 16px;
+           background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+  .term { background: var(--c, var(--canvas)); color: var(--f, #eeeeee); border-radius: 8px; padding: 14px;
+          min-height: 132px; font: 13px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .glyph { display: inline-block; width: 18px; height: 18px; flex: none; background: currentColor; vertical-align: -3px;
+           -webkit-mask: var(--g) center / contain no-repeat; mask: var(--g) center / contain no-repeat; }
+  .glyph.none { visibility: hidden; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px;
+         font: 12px var(--mono); font-variant-numeric: tabular-nums; }
+  .row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .end { margin-inline-start: auto; text-align: end; color: var(--dim); white-space: nowrap; }
+  .row .end.warn { color: var(--warn); }
+  .row.pick { cursor: pointer; }
+  .row.pick:hover, .row.on { background: var(--hover); }
+  .chipdot { width: 14px; height: 14px; border-radius: 50%; flex: none; background: var(--c); border: 1px solid #8888; }
+  .field { width: 100%; padding: 6px 8px; margin-bottom: 6px; font: 13px var(--mono);
+           background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+  .use { margin-top: 12px; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent);
+         color: #fff; font-size: 13px; cursor: pointer; }
+  .use:disabled { opacity: 0.4; cursor: default; }
+  .note { font-size: 12px; color: var(--dim); margin-top: 8px; min-height: 1.45em; }
+  .done { padding: 48px 0; }
+  .done pre { font: 13px/1.6 var(--mono); }
+
+  @media (max-width: 800px) {
+    .cols, .panel { grid-template-columns: 1fr; }
+    .readout { min-width: 0; flex-basis: 100%; text-align: start; margin-inline-start: 0; }
+  }
+</style>
+</head>
+<body>
+<main id="main">
+  <h1>Pick a color for <code id="target">this directory</code></h1>
+  <p class="sub" id="sub">Loading&hellip;</p>
+
+  <canvas id="map" width="1440" height="600"></canvas>
+  <div class="bar">
+    <span class="label">Suggest from</span>
+    <label><input type="radio" name="band" value="any" checked> any lightness</label>
+    <label><input type="radio" name="band" value="dark"> dark only</label>
+    <label><input type="radio" name="band" value="light"> light only</label>
+    <span class="readout" id="readout"></span>
+  </div>
+
+  <div class="cols">
+    <div><div class="label">Widest gaps</div><div class="tray" id="gaps"></div></div>
+    <div><div class="label">From your click</div>
+      <div class="tray" id="clicked"><span class="empty">Click the map for swatches at that spot.</span></div></div>
+  </div>
+
+  <div class="panel">
+    <div>
+      <div class="label">Preview</div>
+      <div class="term" id="term">Pick a swatch.</div>
+      <button class="use" id="use" type="button" disabled>Use this</button>
+      <div class="note" id="note"></div>
+    </div>
+    <div><div class="label">Closest existing</div><div id="near"></div></div>
+    <div>
+      <div class="label">Symbol</div>
+      <input class="field" id="sym" type="text" autocomplete="off" spellcheck="false"
+             placeholder="SF Symbol name" aria-label="Symbol name">
+      <div class="note" id="symnote"></div>
+      <div id="syms"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  const token = new URLSearchParams(location.search).get('t') || '';
+  const api = (path, params) => {
+    const q = new URLSearchParams(Object.assign({ t: token }, params || {}));
+    return path + '?' + q;
+  };
+  const getJSON = (path, params) => fetch(api(path, params)).then(r => {
+    if (!r.ok) throw new Error(path + ' answered ' + r.status);
+    return r.json();
+  });
+  const $ = id => document.getElementById(id);
+
+  const state = { data: null, band: 'any', click: null, clicked: [], sel: null, results: [], finished: false };
+  const glyphs = {}, tinted = {}, asked = new Set(), takenBy = {};
+
+  const cv = $('map'), ctx = cv.getContext('2d');
+  const gx = 96, gw = 60, px = 196, pw = cv.width - px - 30, py = 30, ph = cv.height - 90;
+  const place = p => [p.gray ? gx + gw / 2 : px + p.h / 360 * pw, py + (1 - p.l) * ph];
+  const images = {};
+
+  function image(src) {
+    return new Promise(done => {
+      const img = new Image();
+      img.onload = () => done(img);
+      img.onerror = () => done(null);
+      img.src = src;
+    });
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function glyph(name) {
+    const g = el('span', 'glyph' + (glyphs[name] ? '' : ' none'));
+    if (glyphs[name]) g.style.setProperty('--g', 'url(data:image/png;base64,' + glyphs[name] + ')');
+    return g;
+  }
+
+  // Glyphs arrive after the first draw: the helper that draws them takes a moment to start.
+  function wantGlyphs(names) {
+    if (!state.data.symbols.glyphs) return;
+    const need = names.filter(n => n && !asked.has(n));
+    if (!need.length) return;
+    need.forEach(n => asked.add(n));
+    getJSON('/glyphs', { names: need.join(',') }).then(got => Promise.all(Object.keys(got).map(name => {
+      glyphs[name] = got[name];
+      return image('data:image/png;base64,' + got[name]).then(img => {
+        if (!img) return;
+        ['#000', '#fff'].forEach(col => {
+          const s = 40, off = document.createElement('canvas');
+          off.width = off.height = s;
+          const c = off.getContext('2d'), k = Math.min(s / img.width, s / img.height);
+          c.drawImage(img, (s - img.width * k) / 2, (s - img.height * k) / 2, img.width * k, img.height * k);
+          c.globalCompositeOperation = 'source-in';
+          c.fillStyle = col;
+          c.fillRect(0, 0, s, s);
+          tinted[name + col] = off;
+        });
+      });
+    }))).then(render).catch(() => {});
+  }
+
+  function caption(s, x, y, align) {
+    ctx.font = '22px ui-monospace, Menlo, monospace';
+    ctx.fillStyle = '#9a9aa0';
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(s, x, y);
+  }
+  function outline(dashed) {
+    ctx.setLineDash(dashed ? [7, 5] : []);
+    ctx.lineWidth = 5; ctx.strokeStyle = '#000a'; ctx.stroke();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  function disc(p, r) {
+    const [x, y] = place(p);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, 2 * Math.PI);
+    ctx.fillStyle = p.hex;
+    ctx.fill();
+    return [x, y];
+  }
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (images.field) ctx.drawImage(images.field, px, py, pw, ph);
+    if (images.grays) ctx.drawImage(images.grays, gx, py, gw, ph);
+    caption('grays', gx + gw / 2, py + ph + 28, 'center');
+    caption('hue →', px + pw / 2, py + ph + 28, 'center');
+    caption('light', 4, py + 14);
+    caption('dark', 4, py + ph - 14);
+    if (!state.data) return;
+    state.data.repos.forEach(p => {
+      const mark = tinted[p.sfkey + (p.light ? '#000' : '#fff')];
+      const [x, y] = disc(p, mark ? 19 : 12);
+      outline();
+      if (mark) ctx.drawImage(mark, x - 12, y - 12, 24, 24);
+    });
+    state.data.gaps[state.band].forEach((p, i) => {
+      const [x, y] = disc(p, 19);
+      outline(true);
+      ctx.font = 'bold 20px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = p.light ? '#000' : '#fff';
+      ctx.fillText(i + 1, x, y + 1);
+    });
+    if (state.click) {
+      const [x, y] = state.click;
+      ctx.beginPath();
+      ctx.moveTo(x - 26, y); ctx.lineTo(x + 26, y);
+      ctx.moveTo(x, y - 26); ctx.lineTo(x, y + 26);
+      outline();
+    }
+    if (state.sel) {
+      const [x, y] = place(state.sel);
+      ctx.beginPath();
+      ctx.arc(x, y, 27, 0, 2 * Math.PI);
+      outline();
+    }
+  }
+
+  function swatch(p) {
+    const s = el('div', 'swatch' + (state.sel && state.sel.hex === p.hex ? ' sel' : ''));
+    s.setAttribute('role', 'button');
+    s.tabIndex = 0;
+    s.style.setProperty('--c', p.hex);
+    const meta = el('div', 'meta'), n = p.neighbors[0];
+    meta.append(el('div', 'hex', p.hex), el('div', '', p.tag));
+    if (n) meta.append(el('div', 'who' + (n.close ? ' warn' : ''), (n.close ? 'close to ' : 'nearest ') + n.name));
+    s.append(el('div', 'block'), meta);
+    const go = () => { state.sel = p; render(); };
+    s.addEventListener('click', go);
+    s.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+    return s;
+  }
+
+  function symbol() { return $('sym').value.trim(); }
+
+  function renderSymbols() {
+    const name = symbol(), box = $('syms'), note = $('symnote');
+    note.className = 'note' + (takenBy[name] ? ' warn' : '');
+    note.textContent = takenBy[name] ? 'taken: ' + takenBy[name] : '';
+    box.replaceChildren(...state.results.map(r => {
+      const row = el('div', 'row pick' + (r.name === name ? ' on' : ''));
+      row.append(glyph(r.name), el('span', 'name', r.name));
+      if (r.taken) row.append(el('span', 'end warn', 'taken: ' + r.taken));
+      row.addEventListener('click', () => { $('sym').value = r.name; render(); });
+      return row;
+    }));
+  }
+
+  function render() {
+    if (state.finished) return;
+    const data = state.data;
+    $('gaps').replaceChildren(...data.gaps[state.band].map(swatch));
+    if (state.clicked.length) $('clicked').replaceChildren(...state.clicked.map(swatch));
+    const term = $('term'), near = $('near'), name = symbol();
+    near.replaceChildren();
+    $('use').disabled = !state.sel;
+    if (state.sel) {
+      const p = state.sel;
+      term.style.setProperty('--c', p.hex);
+      term.style.setProperty('--f', p.light ? '#000000' : '#eeeeee');
+      term.replaceChildren();
+      if (glyphs[name]) term.append(glyph(name), ' ');
+      term.append(data.name + '\n$ cat .hued\n' + p.writes.concat(name ? ['sfkey=' + name] : []).join('\n'));
+      p.neighbors.forEach(n => {
+        const row = el('div', 'row'), dot = el('span', 'chipdot');
+        dot.style.setProperty('--c', n.hex);
+        row.append(dot, glyph(n.sfkey), el('span', 'name', n.name),
+          el('span', 'end' + (n.close ? ' warn' : ''), n.distance.toFixed(2)));
+        near.append(row);
+      });
+      const was = data.current.background;
+      $('note').textContent = 'Writes these lines to ' + data.target + '/.hued' +
+        (was ? ', replacing background=' + was + '.' : '.');
+    }
+    renderSymbols();
+    draw();
+  }
+
+  function pointer(e) {
+    const r = cv.getBoundingClientRect(), s = cv.width / r.width;
+    return [(e.clientX - r.left) * s, (e.clientY - r.top) * s];
+  }
+
+  cv.addEventListener('click', e => {
+    const [mx, my] = pointer(e);
+    if (my < py || my > py + ph) return;
+    const gray = mx >= gx && mx <= gx + gw;
+    if (!gray && (mx < px || mx > px + pw)) return;
+    state.click = [mx, my];
+    draw();
+    getJSON('/near', { h: gray ? 0 : (mx - px) / pw * 360, l: 1 - (my - py) / ph, gray: gray ? 1 : 0 })
+      .then(got => {
+        state.clicked = got.swatches;
+        state.sel = got.swatches[0];
+        render();
+      })
+      .catch(err => { $('note').textContent = String(err.message || err); });
+  });
+
+  cv.addEventListener('mousemove', e => {
+    if (!state.data) return;
+    const [mx, my] = pointer(e);
+    let hit = null, best = 26;
+    state.data.repos.forEach(p => {
+      const [x, y] = place(p), d = Math.hypot(x - mx, y - my);
+      if (d < best) { best = d; hit = p; }
+    });
+    $('readout').textContent = hit ? hit.name + '  ' + hit.hex + (hit.sfkey ? '  ' + hit.sfkey : '') : '';
+  });
+
+  document.querySelectorAll('input[name=band]').forEach(input => input.addEventListener('change', () => {
+    state.band = input.value;
+    render();
+  }));
+
+  let pending = 0;
+  $('sym').addEventListener('input', () => {
+    render();
+    if (!state.data.symbols.search) return;
+    clearTimeout(pending);
+    pending = setTimeout(() => {
+      const query = symbol();
+      getJSON('/symbols', { q: query }).then(got => {
+        if (query !== symbol()) return;
+        state.results = got.names;
+        wantGlyphs(got.names.map(n => n.name));
+        renderSymbols();
+      }).catch(() => {});
+    }, 150);
+  });
+
+  $('use').addEventListener('click', () => {
+    if (!state.sel) return;
+    $('use').disabled = true;
+    fetch(api('/use'), { method: 'POST', body: JSON.stringify({ background: state.sel.hex, sfkey: symbol() }) })
+      .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t.trim() || 'write failed'); }))
+      .then(got => {
+        state.finished = true;
+        const done = el('div', 'done');
+        done.append(el('h1', '', 'Written to ' + got.path), el('pre', '', got.written.join('\n')),
+          el('p', 'sub', 'You can close this tab.'));
+        $('main').replaceChildren(done);
+      })
+      .catch(err => {
+        $('use').disabled = false;
+        const note = $('note');
+        note.className = 'note warn';
+        note.textContent = String(err.message || err);
+      });
+  });
+
+  addEventListener('pagehide', () => {
+    if (!state.finished) navigator.sendBeacon(api('/bye'));
+  });
+
+  Promise.all([getJSON('/data'), image(api('/field.png')), image(api('/grays.png'))])
+    .then(([data, field, grays]) => {
+      state.data = data;
+      images.field = field;
+      images.grays = grays;
+      data.repos.forEach(r => { if (r.sfkey && !takenBy[r.sfkey]) takenBy[r.sfkey] = r.name; });
+      document.title = 'hued map — ' + data.name;
+      $('target').textContent = data.name;
+      $('sub').textContent = data.repos.length
+        ? 'Dots are the backgrounds in use under ' + data.root + '. Dashed rings are the widest gaps. ' +
+          'Click the map for swatches at that spot.'
+        : 'No .hued backgrounds found under ' + data.root + ', so every color is free.';
+      if (data.current.sfkey) $('sym').value = data.current.sfkey;
+      if (!data.symbols.search) $('sym').placeholder = 'SF Symbol name, e.g. leaf';
+      render();
+      wantGlyphs(data.repos.map(r => r.sfkey).concat(data.current.sfkey || []));
+    })
+    .catch(err => { $('sub').textContent = 'Could not load: ' + String(err.message || err); });
+})();
+</script>
+</body>
+</html>

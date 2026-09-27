@@ -10,7 +10,7 @@ _hued_completion() {
   COMPREPLY=()
 
   if [[ $COMP_CWORD -eq 1 ]]; then
-    mapfile -t COMPREPLY < <(compgen -W "set unset fork get mod apply where resolve pack unpack -a" -- "$cur")
+    mapfile -t COMPREPLY < <(compgen -W "set unset fork get mod apply where resolve pack unpack map -a" -- "$cur")
   elif [[ $prev == "get" ]]; then
     mapfile -t COMPREPLY < <(compgen -W "$keys" -- "$cur")
   elif [[ $prev == "unset" ]]; then
@@ -40,6 +40,11 @@ _hued_completion() {
     fi
   elif [[ $prev == "pack" ]]; then
     mapfile -t COMPREPLY < <(compgen -d -- "$cur")
+  elif [[ $prev == "map" ]]; then
+    mapfile -t COMPREPLY < <(compgen -d -- "$cur")
+    mapfile -t -O "${#COMPREPLY[@]}" COMPREPLY < <(compgen -W "--no-open" -- "$cur")
+  elif [[ "$pprev" == "map" ]]; then
+    mapfile -t COMPREPLY < <(compgen -W "--no-open" -- "$cur")
   elif [[ $prev == "-o" ]]; then
     mapfile -t COMPREPLY < <(compgen -f -- "$cur")
   elif [[ $prev == "unpack" ]]; then

@@ -35,6 +35,7 @@ _hued() {
         'resolve:print the canonical #rrggbb hex for a color (via pastel)'
         'pack:generate a JSON map of .hued configs from a directory tree'
         'unpack:restore .hued files from a JSON map'
+        'map:open a page of the colors in use and pick an unused one'
       )
       _describe 'subcommand' subcommands
       ;;
@@ -48,6 +49,9 @@ _hued() {
           ;;
         pack)
           _directories
+          ;;
+        map)
+          _alternative 'directories:directory:_directories' 'flags:flag:(--no-open)'
           ;;
         unpack)
           _files -g '*.json'
@@ -90,6 +94,9 @@ _hued() {
           ;;
         unpack)
           compadd -- '--force'
+          ;;
+        map)
+          compadd -- '--no-open'
           ;;
       esac
       ;;

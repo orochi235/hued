@@ -596,6 +596,13 @@ case "${1:-}" in
     _hued_apply_cmd
     ;;
 
+  map)
+    shift
+    _xkcd_flag=""
+    [[ "${_HUED_XKCD:-0}" == "1" ]] && _xkcd_flag="--xkcd"
+    exec "$(dirname "$0")/hued-py" huedmap --hued "$0" ${_xkcd_flag:+"$_xkcd_flag"} "$@"
+    ;;
+
   -i|--interactive)
     _picker="$(dirname "$0")/hued-pick"
     if [[ ! -f "$_picker" ]]; then
@@ -635,7 +642,7 @@ case "${1:-}" in
     ;;
 
   *)
-    echo "Usage: hued [-x] [-a | where | get <key> [--name] | set <key> <value> | unset <key> | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | -i [--live] | -v]" >&2
+    echo "Usage: hued [-x] [-a | where | get <key> [--name] | set <key> <value> | unset <key> | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | map [<dir>] [--no-open] | -i [--live] | -v]" >&2
     echo "       <key> is one of: ${_HUED_KEY_LIST//|/, }" >&2
     exit 1
     ;;
