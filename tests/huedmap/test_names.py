@@ -1,4 +1,4 @@
-from src.picker.names import NAMED_COLORS, XKCD_OVERRIDES
+from src.huedmap.names import NAMED_COLORS, XKCD_OVERRIDES
 
 
 def test_named_colors_count():

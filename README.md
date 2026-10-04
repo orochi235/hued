@@ -27,7 +27,7 @@ hued set bg midnightblue
 ```zsh
 hued set red        # #ff0000  (CSS)
 hued -x set red     # #e50000  (xkcd)
-hued -x -i          # the picker, speaking xkcd
+hued -x map         # the map page, speaking xkcd
 ```
 
 `hued get bg --name` reverses the lookup: it prints the name of the closest
@@ -45,21 +45,24 @@ Everything after the value on a line is treated as a comment and ignored when pa
 
 ## Keys
 
-`.hued` holds one `key=value` per line. hued paints `background` and
+`.hued` holds one `key=value` per line. When a key appears twice, the later
+line wins, so `hued pick >> .hued` overrides what the file already says. hued paints `background` and
 `foreground`; the other keys are identity metadata it stores for other tools to
-read — **nothing in hued renders `accent` or mints branch colors yet.**
+read — **nothing in hued renders the accents or mints branch colors yet.**
 
 ```ini
 background=#470013
 foreground=#ffffff
-accent=#ccff00              # a highlight color, for tools that draw one
+accent=#ccff00              # highlight colors, for tools that draw them
+accent2=#ff6ec7
+accent3=#00ced1
 branch-hue=+30deg..+90deg   # the range a per-branch color is minted from
 branch-lightness=22%..38%
 branch-chroma=70%..100%
 sfkey=paintbrush.pointed.fill  # an SF Symbol name, for tools that draw an icon
 ```
 
-`accent` is a color like the other two, names and all. The `branch-*` keys are
+`accent`, `accent2` and `accent3` are colors like the other two, names and all. The `branch-*` keys are
 ranges: a signed endpoint is relative to this repo's own color, an unsigned one
 is absolute, and a range has to be all one or the other — the same rule `mod`
 uses. A lone value stands for a degenerate range. `sfkey` is stored as given,
@@ -73,7 +76,11 @@ hued set branch-hue +30deg..+90deg
 hued set sfkey leaf
 hued get accent --name           # limegreen
 hued unset branch-chroma
+hued set bg=navy accent=limegreen sfkey=leaf   # several at once
 ```
+
+Several keys in one `set` are all checked before any is written, so one bad
+value leaves the file as it was.
 
 Bare `hued` prints `background` and `foreground`. `hued -a` prints every key the
 file holds.
@@ -134,14 +141,15 @@ hued where                        # print path to the controlling .hued file
 hued get <key> [--name]           # print a key's resolved hex, or its nearest name
 hued set <color>                  # set background color
 hued set <key> <value>            # set a named key
+hued set <key>=<value>...         # set several keys at once (or <key> <value> pairs)
 hued unset <key>                  # remove a key
 hued mod [bg|fg] <op> [<args>]... # apply pastel transforms to a channel
 hued apply                        # repaint the terminal to match the current .hued
 hued resolve <color>              # print canonical #rrggbb for a color (requires pastel)
 hued pack [<dir>] [-o <file>]     # export all .hued files under <dir> to JSON
 hued unpack <file> [--force]      # restore .hued files from a JSON export
-hued map [<dir>] [--no-open]      # pick an unused color from a page of the ones in use
-hued -i [--live]                  # open interactive color picker
+hued map [<dir>] [--no-open]      # pick colors on a page of the ones in use (-i is the same)
+hued pick [<dir>] [--no-open]     # the same page, printing the pick instead of writing it
 ```
 
 `set` also accepts a color from stdin when no color argument is given, so pipelines work:
@@ -201,20 +209,35 @@ to right and lightness bottom to top, with grays in a column of their own.
   muted, lighter and darker.
 - A swatch that would be hard to tell apart from an existing one says
   "close to" and names it.
+- **Picking** chooses which key a swatch sets: `background`, `foreground`,
+  `accent`, `accent2` or `accent3`. Any color can also be typed as hex or
+  chosen from the system color panel. Each key shows its contrast against the
+  background, in orange when it falls under 4.5:1 for `foreground` or 3:1 for
+  an accent.
 - **Symbol** sets `sfkey`, and marks a symbol another directory already uses.
 
-"Use this" writes `.hued` in the directory you ran the command from and the
-command exits. It writes `background`, `sfkey` if you chose one, and
-`foreground=#000000` when the background is light enough to need dark text.
-Other keys already in the file are kept. Closing the tab or pressing Ctrl-C
-exits without writing.
+The preview shows the `hued set` command for what you changed, and "copy
+command" copies it, so the same colors can be pasted into any other directory.
+Selecting the preview copies only the command.
+
+"Use these" writes the keys you changed to `.hued` in the directory you ran the
+command from, and the command exits. A new light background with no
+`foreground` chosen also gets `foreground=#000000`. Other keys already in the
+file are kept. Closing the tab or pressing Ctrl-C exits without writing.
 
 ```
 hued map [<dir>] [--no-open]
+hued pick [<dir>] [--no-open]
 ```
 
 `<dir>` is the directory to scan, the parent of the current one by default.
-`--no-open` prints the page's URL instead of opening a browser.
+`--no-open` prints the page's URL instead of opening a browser. `hued -i` is
+another name for `hued map`.
+
+`hued pick` is the same page for choosing colors with no project in mind. It
+writes no file: "Print these" sends the lines to standard output, so
+`hued pick >> .hued` or `hued set $(hued pick)` works. It scans `<dir>` only when you
+give one.
 
 The page is served from your own machine, on the loopback address only, for as
 long as the command runs.
@@ -224,23 +247,6 @@ symbol and searches Apple's symbol names as you type. Elsewhere symbols are
 shown by name.
 
 **Requirements:** Python 3.9 or later.
-
-## Interactive picker
-
-`hued -i` opens a fullscreen terminal color picker. Use the arrow keys to
-adjust colors by channel, tab between panes, and press Enter to confirm.
-The selected colors are written to the nearest `.hued` file.
-
-Pass `--live` to apply colors immediately as you move sliders:
-
-```zsh
-hued -i --live
-```
-
-**Requirements:** Python 3.9 or later.
-
-The picker is implemented in stdlib-only Python and ships as part of the hued
-package. Homebrew installations include Python 3.12 as a dependency.
 
 ## Environment variables
 

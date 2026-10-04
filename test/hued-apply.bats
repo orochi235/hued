@@ -236,3 +236,10 @@ teardown() {
   run cat "$OUT"
   [[ "$output" == *"${ESC}]11;rgb:1a/0a/0a${BEL}"* ]]
 }
+
+@test "apply: with a key twice, the later line wins" {
+  printf "background=#1a0a0a\nbackground=#c8ff59\n" > .hued
+  HUED_TTY="$OUT" run "$HUED" apply
+  run cat "$OUT"
+  [[ "$output" == *"${ESC}]11;rgb:c8/ff/59${BEL}"* ]]
+}

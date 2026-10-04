@@ -6,10 +6,10 @@ import os
 import re
 import sys
 
-from picker.names import NAMED_COLORS, XKCD_OVERRIDES
+from .names import NAMED_COLORS, XKCD_OVERRIDES
 
 HEADER = "# https://github.com/orochi235/hued\n"
-COLOR_KEYS = {"background", "foreground", "accent"}
+COLOR_KEYS = {"background", "foreground", "accent", "accent2", "accent3"}
 
 # Never hold a .hued worth finding, and walking them is most of a scan's time.
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__"}

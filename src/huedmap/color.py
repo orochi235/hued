@@ -7,12 +7,74 @@ from __future__ import annotations
 import math
 import struct
 import zlib
+from dataclasses import dataclass
 
-from picker.colors import (
-    RGB, hex_to_rgb, linear_to_rgb, oklab_to_linear, rgb_to_hex, rgb_to_oklab,
-)
 
 Lab = tuple[float, float, float]
+
+
+@dataclass(frozen=True)
+class RGB:
+    r: int
+    g: int
+    b: int
+
+
+def hex_to_rgb(value: str) -> RGB:
+    bare = value[1:] if value.startswith("#") else value
+    if len(bare) == 3:
+        bare = "".join(c + c for c in bare)
+    n = int(bare, 16)
+    return RGB((n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff)
+
+
+def rgb_to_hex(rgb: RGB) -> str:
+    return f"#{rgb.r:02x}{rgb.g:02x}{rgb.b:02x}"
+
+
+def _linearize(v: int) -> float:
+    s = v / 255
+    return s / 12.92 if s <= 0.04045 else ((s + 0.055) / 1.055) ** 2.4
+
+
+def _delinearize(v: float) -> float:
+    return 12.92 * v if v <= 0.0031308 else 1.055 * (v ** (1 / 2.4)) - 0.055
+
+
+def _clamp_u8(x: float) -> int:
+    return max(0, min(255, round(x)))
+
+
+def _cbrt(v: float) -> float:
+    return v ** (1 / 3) if v >= 0 else -((-v) ** (1 / 3))
+
+
+def rgb_to_oklab(rgb: RGB) -> tuple[float, float, float]:
+    rl, gl, bl = _linearize(rgb.r), _linearize(rgb.g), _linearize(rgb.b)
+    l_ = _cbrt(0.4122214708 * rl + 0.5363325363 * gl + 0.0514459929 * bl)
+    m_ = _cbrt(0.2119034982 * rl + 0.6806995451 * gl + 0.1073969566 * bl)
+    s_ = _cbrt(0.0883024619 * rl + 0.2817188376 * gl + 0.6299787005 * bl)
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
+
+
+def oklab_to_linear(L: float, a: float, b: float) -> tuple[float, float, float]:
+    """Linear sRGB, unclamped: a channel outside 0..1 means out of gamut."""
+    l_c = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+    m_c = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+    s_c = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3
+    return (
+        +4.0767416621 * l_c - 3.3077115913 * m_c + 0.2309699292 * s_c,
+        -1.2684380046 * l_c + 2.6097574011 * m_c - 0.3413193965 * s_c,
+        -0.0041960863 * l_c - 0.7034186147 * m_c + 1.7076147010 * s_c,
+    )
+
+
+def linear_to_rgb(linear: tuple[float, float, float]) -> RGB:
+    return RGB(*(_clamp_u8(_delinearize(max(0.0, v)) * 255) for v in linear))
 
 # Chosen by eye on one palette of 46 colors, not derived.
 CLOSE = 0.10
@@ -31,6 +93,16 @@ def lab(hexv: str) -> Lab:
 
 def distance(a: Lab, b: Lab) -> float:
     return math.dist(a, b)
+
+
+def contrast(a: str, b: str) -> float:
+    """The WCAG contrast ratio between two colors, 1 to 21."""
+    def luminance(hexv: str) -> float:
+        rgb = hex_to_rgb(hexv)
+        return 0.2126 * _linearize(rgb.r) + 0.7152 * _linearize(rgb.g) + 0.0722 * _linearize(rgb.b)
+
+    hi, lo = sorted((luminance(a), luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
 
 
 def place(hexv: str) -> dict:

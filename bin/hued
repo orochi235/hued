@@ -203,14 +203,14 @@ _hued_read_stdin_color() {
 
 # The keys `.hued` understands. Color keys hold a color; policy keys hold a
 # minting range and text keys a bare token, both for external tools.
-_HUED_KEY_LIST="bg|fg|accent|branch-hue|branch-lightness|branch-chroma|sfkey"
+_HUED_KEY_LIST="bg|fg|accent|accent2|accent3|branch-hue|branch-lightness|branch-chroma|sfkey"
 
 # Canonicalize a key argument, or return 1 if it is not one of ours.
 _hued_key() {
   case "${1:-}" in
     bg|background) printf 'background' ;;
     fg|foreground) printf 'foreground' ;;
-    accent) printf 'accent' ;;
+    accent|accent2|accent3) printf '%s' "$1" ;;
     branch-hue|branch-lightness|branch-chroma|sfkey) printf '%s' "$1" ;;
     *) return 1 ;;
   esac
@@ -262,6 +262,14 @@ _hued_policy_value() {
 }
 
 # Replace (or append) one key's line in ./.hued, creating the file if needed.
+# Print each key's line once, in first-seen order, with its last value: a key
+# written twice (`hued pick >> .hued`) means the later line.
+_hued_last_lines() {
+  awk -v keys="^($2)=" '$0 ~ keys { k = substr($0, 1, index($0, "=") - 1)
+    if (!(k in v)) o[n++] = k; v[k] = $0 }
+    END { for (i = 0; i < n; i++) print v[o[i]] }' "$1"
+}
+
 _hued_put_line() {
   local key="$1" line="$2"
   if [[ -f .hued ]]; then
@@ -273,8 +281,24 @@ _hued_put_line() {
   fi
 }
 
-_hued_set_key() {
+# Print the .hued line for one key, or an error and return 1. Validates without
+# writing, so a multi-key `set` can check every value before touching the file.
+_hued_key_line() {
   local key="$1" raw="$2" color line
+  if _hued_is_policy_key "$key"; then
+    raw=$(_hued_policy_value "hued set" "$key" "$raw") || return 1
+    printf '%s=%s' "$key" "$raw"
+    return
+  fi
+  if _hued_is_text_key "$key"; then
+    # Parsers keep only the first token of a value.
+    [[ "$raw" =~ ^[^[:space:]#]+$ ]] || {
+      echo "hued set: '$raw' is not a valid ${key} value (one token, no spaces or #)" >&2
+      return 1
+    }
+    printf '%s=%s' "$key" "$raw"
+    return
+  fi
   color="$(_hued_normalize_color "$raw")"
   line="${key}=${color}"
   # If the input was a recognized color name (not hex/none) that resolved to
@@ -284,14 +308,20 @@ _hued_set_key() {
         && "$raw" != "none" && "$color" =~ ^#[0-9a-f]{6}$ ]]; then
     line="${line}  # ${raw}"
   fi
-  _hued_put_line "$key" "$line"
-  echo "Set ${key} to ${color} in ${PWD}/.hued"
+  printf '%s' "$line"
 }
 
-_hued_set_raw_key() {
-  local key="$1" value="$2"
-  _hued_put_line "$key" "${key}=${value}"
-  echo "Set ${key} to ${value} in ${PWD}/.hued"
+_hued_write_line() {
+  local key="$1" line="$2" value
+  _hued_put_line "$key" "$line"
+  value="${line#*=}"
+  echo "Set ${key} to ${value%%  #*} in ${PWD}/.hued"
+}
+
+_hued_set_key() {
+  local line
+  line=$(_hued_key_line "$1" "$2") || return 1
+  _hued_write_line "$1" "$line"
 }
 
 _hued_resolve_hex() {
@@ -361,8 +391,8 @@ _hued_apply_cmd() {
   local bg="" fg="" dir="$PWD"
   while [[ "$dir" != / && -n "$dir" ]]; do
     if [[ -f "$dir/.hued" ]]; then
-      bg=$({ grep -m1 '^background=' "$dir/.hued" || true; } | cut -d= -f2 | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
-      fg=$({ grep -m1 '^foreground=' "$dir/.hued" || true; } | cut -d= -f2 | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+      bg=$({ grep '^background=' "$dir/.hued" | tail -n1 || true; } | cut -d= -f2 | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+      fg=$({ grep '^foreground=' "$dir/.hued" | tail -n1 || true; } | cut -d= -f2 | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
       [[ -n "$bg" || -n "$fg" ]] && break
     fi
     dir="${dir%/*}"
@@ -397,12 +427,12 @@ fi
 case "${1:-}" in
   "")
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
-    grep '^background=\|^foreground=' "$file"
+    _hued_last_lines "$file" 'background|foreground'
     ;;
 
   -a|--all)
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
-    grep -E '^[A-Za-z][A-Za-z0-9-]*=' "$file"
+    _hued_last_lines "$file" '[A-Za-z][A-Za-z0-9-]*'
     ;;
 
   -v|--version|version)
@@ -433,7 +463,7 @@ case "${1:-}" in
       exit 1
     }
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
-    raw=$({ grep -m1 "^${key}=" "$file" || true; } | cut -d= -f2 | awk '{print $1}')
+    raw=$({ grep "^${key}=" "$file" | tail -n1 || true; } | cut -d= -f2 | awk '{print $1}')
     [[ -z "$raw" ]] && exit 1
     if _hued_is_policy_key "$key" || _hued_is_text_key "$key"; then
       [[ "${3:-}" == "--name" ]] && {
@@ -476,7 +506,7 @@ case "${1:-}" in
       exit 1
     }
     file=$(_hued_find) || { echo "No .hued file found" >&2; exit 1; }
-    current=$({ grep -m1 "^${key}=" "$file" || true; } | cut -d= -f2 | awk '{print $1}')
+    current=$({ grep "^${key}=" "$file" | tail -n1 || true; } | cut -d= -f2 | awk '{print $1}')
     [[ -z "$current" ]] && { echo "hued mod: ${key} not set in $file" >&2; exit 1; }
     new=$(_hued_mod_run "$current" "$@") || exit 1
     _hued_set_key "$key" "$new"
@@ -485,24 +515,36 @@ case "${1:-}" in
 
   set)
     shift
-    if key=$(_hued_key "${1:-}"); then
+    if [[ "${1:-}" == *=* ]] || { _hued_key "${1:-}" >/dev/null && [[ $# -gt 2 ]]; }; then
+      # Several keys at once, as key=value tokens or key value pairs. Every
+      # value is checked before anything is written.
+      _pairs=()
+      if [[ "$1" == *=* ]]; then
+        for _tok in "$@"; do
+          [[ "$_tok" == *=* ]] || { echo "hued set: '$_tok' is not key=value" >&2; exit 1; }
+          _pairs+=("${_tok%%=*}" "${_tok#*=}")
+        done
+      else
+        (( $# % 2 == 0 )) || { echo "hued set: '${!#}' has no value" >&2; exit 1; }
+        _pairs=("$@")
+      fi
+      _keys=() _lines=()
+      for (( _i = 0; _i < ${#_pairs[@]}; _i += 2 )); do
+        key=$(_hued_key "${_pairs[_i]}") || {
+          echo "hued set: unknown key '${_pairs[_i]}' (expected one of: ${_HUED_KEY_LIST//|/, })" >&2
+          exit 1
+        }
+        [[ -n "${_pairs[_i+1]}" ]] || { echo "hued set: ${_pairs[_i]} has no value" >&2; exit 1; }
+        _line=$(_hued_key_line "$key" "${_pairs[_i+1]}") || exit 1
+        _keys+=("$key") _lines+=("$_line")
+      done
+      for _i in "${!_keys[@]}"; do _hued_write_line "${_keys[_i]}" "${_lines[_i]}"; done
+    elif key=$(_hued_key "${1:-}"); then
       given="$1"; shift
       value="${1:-}"
       [[ -z "$value" ]] && { value="$(_hued_read_stdin_color)" || value=""; }
       [[ -z "$value" ]] && { echo "Usage: hued set ${given} <value>" >&2; exit 1; }
-      if _hued_is_policy_key "$key"; then
-        value=$(_hued_policy_value "hued set" "$key" "$value") || exit 1
-        _hued_set_raw_key "$key" "$value"
-      elif _hued_is_text_key "$key"; then
-        # Parsers keep only the first token of a value.
-        [[ "$value" =~ ^[^[:space:]#]+$ ]] || {
-          echo "hued set: '$value' is not a valid ${key} value (one token, no spaces or #)" >&2
-          exit 1
-        }
-        _hued_set_raw_key "$key" "$value"
-      else
-        _hued_set_key "$key" "$value"
-      fi
+      _hued_set_key "$key" "$value" || exit 1
     elif [[ $# -gt 1 ]]; then
       # A bare `hued set <color>` is still a background, but a second argument
       # means the first was meant as a key — writing it as a color would
@@ -534,8 +576,8 @@ case "${1:-}" in
     done
     [[ -z "$ancestor" && -f "/.hued" ]] && ancestor="/.hued"
     [[ -z "$ancestor" ]] && { echo "hued fork: no ancestor .hued to inherit from" >&2; exit 1; }
-    bg=$({ grep -m1 '^background=' "$ancestor" || true; } | cut -d= -f2 | awk '{print $1}')
-    fg=$({ grep -m1 '^foreground=' "$ancestor" || true; } | cut -d= -f2 | awk '{print $1}')
+    bg=$({ grep '^background=' "$ancestor" | tail -n1 || true; } | cut -d= -f2 | awk '{print $1}')
+    fg=$({ grep '^foreground=' "$ancestor" | tail -n1 || true; } | cut -d= -f2 | awk '{print $1}')
     if [[ -z "$bg" && -z "$fg" ]]; then
       echo "hued fork: ancestor $ancestor has no background or foreground to inherit" >&2
       exit 1
@@ -596,53 +638,18 @@ case "${1:-}" in
     _hued_apply_cmd
     ;;
 
-  map)
+  map|pick|-i|--interactive)
+    # `pick` reports the colors instead of writing them; -i is the old picker's flag.
+    _print_flag=""
+    [[ "$1" == pick ]] && _print_flag="--print"
     shift
     _xkcd_flag=""
     [[ "${_HUED_XKCD:-0}" == "1" ]] && _xkcd_flag="--xkcd"
-    exec "$(dirname "$0")/hued-py" huedmap --hued "$0" ${_xkcd_flag:+"$_xkcd_flag"} "$@"
-    ;;
-
-  -i|--interactive)
-    _picker="$(dirname "$0")/hued-pick"
-    if [[ ! -f "$_picker" ]]; then
-      echo "hued -i: hued-pick not found at $_picker" >&2
-      exit 1
-    fi
-    _current_bg=""
-    _current_fg=""
-    if _file=$(_hued_find 2>/dev/null); then
-      _raw_bg=$({ grep -m1 '^background=' "$_file" || true; } | cut -d= -f2 | awk '{print $1}')
-      _raw_fg=$({ grep -m1 '^foreground=' "$_file" || true; } | cut -d= -f2 | awk '{print $1}')
-      [[ -z "$_raw_bg" ]] || _current_bg=$(_hued_normalize_color "$_raw_bg")
-      [[ -z "$_raw_fg" ]] || _current_fg=$(_hued_normalize_color "$_raw_fg")
-    fi
-    _live_flag=""
-    for _arg in "$@"; do
-      case "$_arg" in
-        --live)    _live_flag="--live" ;;
-        -x|--xkcd) _HUED_XKCD=1 ;;
-      esac
-    done
-    _xkcd_flag=""
-    [[ "${_HUED_XKCD:-0}" == "1" ]] && _xkcd_flag="--xkcd"
-    _tmpfile=$(mktemp)
-    "$_picker" \
-      ${_current_bg:+--bg "$_current_bg"} \
-      ${_current_fg:+--fg "$_current_fg"} \
-      ${_live_flag:+"$_live_flag"} \
-      ${_xkcd_flag:+"$_xkcd_flag"} --output "$_tmpfile" || { rm -f "$_tmpfile"; exit 0; }
-    while IFS='=' read -r _key _value; do
-      case "$_key" in
-        background) _hued_set_key "background" "$_value" ;;
-        foreground) _hued_set_key "foreground" "$_value" ;;
-      esac
-    done < "$_tmpfile"
-    rm -f "$_tmpfile"
+    exec "$(dirname "$0")/hued-py" huedmap --hued "$0" ${_print_flag:+"$_print_flag"} ${_xkcd_flag:+"$_xkcd_flag"} "$@"
     ;;
 
   *)
-    echo "Usage: hued [-x] [-a | where | get <key> [--name] | set <key> <value> | unset <key> | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | map [<dir>] [--no-open] | -i [--live] | -v]" >&2
+    echo "Usage: hued [-x] [-a | where | get <key> [--name] | set <key> <value> [<key> <value>...] | set <key>=<value>... | unset <key> | fork | mod [bg|fg] <op> [<args>...] | resolve <color> | pack [<dir>] [-o <file>] | unpack <file> [--force] | map [<dir>] [--no-open] | pick [<dir>] [--no-open] | -v]" >&2
     echo "       <key> is one of: ${_HUED_KEY_LIST//|/, }" >&2
     exit 1
     ;;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate hued-names.sh and src/picker/names.py from CSS + xkcd color names.
+"""Generate hued-names.sh and src/huedmap/names.py from CSS + xkcd color names.
 
 Sources:
   - CSS Color Module Level 4 named colors (148), hardcoded below. Stable since
@@ -163,14 +163,14 @@ def main() -> int:
         py.append(f'    "{k}": "{overrides[k]}",')
     py.append("}")
     py.append("")
-    (ROOT / "src" / "picker" / "names.py").write_text("\n".join(py))
+    (ROOT / "src" / "huedmap" / "names.py").write_text("\n".join(py))
 
     print(f"{len(merged)} names ({len(CSS_NAMES)} CSS + "
           f"{len(merged) - len(CSS_NAMES)} xkcd-only), "
           f"{len(overrides)} xkcd overrides, "
           f"{collisions} xkcd spelling collisions resolved")
     print(f"wrote {ROOT / 'hued-names.sh'}")
-    print(f"wrote {ROOT / 'src' / 'picker' / 'names.py'}")
+    print(f"wrote {ROOT / 'src' / 'huedmap' / 'names.py'}")
     return 0
 
 

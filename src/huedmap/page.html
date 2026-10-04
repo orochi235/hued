@@ -33,6 +33,27 @@
   .readout { margin-inline-start: auto; text-align: end; min-width: 40ch; min-height: 1.45em;
              font: 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--dim); }
 
+  .slots { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; }
+  .tint { color: var(--t); }
+  .deco { user-select: none; -webkit-user-select: none; }
+  .actions { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+  .actions .use { margin-top: 0; }
+  .slot { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; cursor: pointer;
+          border: 1px solid var(--border); border-radius: 999px; background: var(--panel);
+          font: 12px var(--mono); font-variant-numeric: tabular-nums; }
+  .slot:has(input:checked) { outline: 2px solid var(--accent); }
+  .slot:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .slot input { position: absolute; opacity: 0; pointer-events: none; }
+  .slot .chipdot.unset { background: repeating-linear-gradient(45deg, #8884 0 3px, transparent 3px 6px); }
+  .slot .ratio { color: var(--dim); min-width: 6ch; text-align: end; }
+  .slot .ratio.warn { color: var(--warn); }
+  .custom { display: inline-flex; gap: 6px; align-items: center; margin-inline-start: auto; }
+  .custom input[type=color] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--border);
+                              border-radius: 6px; background: none; cursor: pointer; }
+  .custom .field { width: 10ch; margin: 0; }
+  .link { border: 0; background: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 4px; }
+  .link:disabled { color: var(--dim); cursor: default; }
+
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   .tray { display: flex; flex-wrap: wrap; gap: 10px; min-height: 128px; align-content: flex-start; }
   .empty { color: var(--dim); }
@@ -73,12 +94,13 @@
   @media (max-width: 800px) {
     .cols, .panel { grid-template-columns: 1fr; }
     .readout { min-width: 0; flex-basis: 100%; text-align: start; margin-inline-start: 0; }
+    .custom { margin-inline-start: 0; }
   }
 </style>
 </head>
 <body>
 <main id="main">
-  <h1>Pick a color for <code id="target">this directory</code></h1>
+  <h1 id="title">Pick colors for <code id="target">this directory</code></h1>
   <p class="sub" id="sub">Loading&hellip;</p>
 
   <canvas id="map" width="1440" height="600"></canvas>
@@ -90,6 +112,16 @@
     <span class="readout" id="readout"></span>
   </div>
 
+  <div class="slots" id="slots" role="radiogroup" aria-label="The color being picked">
+    <span class="label">Picking</span>
+    <span class="custom">
+      <input type="color" id="custom" aria-label="Any color">
+      <input class="field" id="hex" type="text" autocomplete="off" spellcheck="false"
+             placeholder="#rrggbb" aria-label="Hex color">
+      <button class="link" id="revert" type="button">revert</button>
+    </span>
+  </div>
+
   <div class="cols">
     <div><div class="label">Widest gaps</div><div class="tray" id="gaps"></div></div>
     <div><div class="label">From your click</div>
@@ -99,11 +131,14 @@
   <div class="panel">
     <div>
       <div class="label">Preview</div>
-      <div class="term" id="term">Pick a swatch.</div>
-      <button class="use" id="use" type="button" disabled>Use this</button>
+      <div class="term" id="term"></div>
+      <div class="actions">
+        <button class="use" id="use" type="button" disabled>Use these</button>
+        <button class="link" id="copy" type="button" disabled>copy command</button>
+      </div>
       <div class="note" id="note"></div>
     </div>
-    <div><div class="label">Closest existing</div><div id="near"></div></div>
+    <div><div class="label">Closest existing backgrounds</div><div id="near"></div></div>
     <div>
       <div class="label">Symbol</div>
       <input class="field" id="sym" type="text" autocomplete="off" spellcheck="false"
@@ -128,7 +163,9 @@
   });
   const $ = id => document.getElementById(id);
 
-  const state = { data: null, band: 'any', click: null, clicked: [], sel: null, results: [], finished: false };
+  // picks holds only the slots changed on this page; the server fills in the rest from .hued.
+  const state = { data: null, band: 'any', click: null, clicked: [], slot: 'background', picks: {},
+                  view: null, results: [], finished: false };
   const glyphs = {}, tinted = {}, asked = new Set(), takenBy = {};
 
   const cv = $('map'), ctx = cv.getContext('2d');
@@ -233,8 +270,9 @@
       ctx.moveTo(x, y - 26); ctx.lineTo(x, y + 26);
       outline();
     }
-    if (state.sel) {
-      const [x, y] = place(state.sel);
+    const sel = state.view && state.view.colors[state.slot];
+    if (sel) {
+      const [x, y] = place(sel);
       ctx.beginPath();
       ctx.arc(x, y, 27, 0, 2 * Math.PI);
       outline();
@@ -242,7 +280,7 @@
   }
 
   function swatch(p) {
-    const s = el('div', 'swatch' + (state.sel && state.sel.hex === p.hex ? ' sel' : ''));
+    const s = el('div', 'swatch' + (state.picks[state.slot] === p.hex ? ' sel' : ''));
     s.setAttribute('role', 'button');
     s.tabIndex = 0;
     s.style.setProperty('--c', p.hex);
@@ -250,7 +288,7 @@
     meta.append(el('div', 'hex', p.hex), el('div', '', p.tag));
     if (n) meta.append(el('div', 'who' + (n.close ? ' warn' : ''), (n.close ? 'close to ' : 'nearest ') + n.name));
     s.append(el('div', 'block'), meta);
-    const go = () => { state.sel = p; render(); };
+    const go = () => choose(p.hex);
     s.addEventListener('click', go);
     s.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
@@ -273,34 +311,97 @@
     }));
   }
 
+  function choose(hex) {
+    state.picks[state.slot] = hex;
+    refresh();
+  }
+
+  let asking = 0;
+  function refresh() {
+    const ask = ++asking;
+    const params = Object.assign({}, state.picks, symbol() ? { sfkey: symbol() } : {});
+    getJSON('/preview', params).then(got => {
+      if (ask !== asking) return;
+      state.view = got;
+      render();
+    }).catch(err => { $('note').textContent = String(err.message || err); });
+  }
+
+  function slotRow() {
+    const box = $('slots'), first = box.querySelector('.custom');
+    if (!box.querySelector('.slot')) {
+      state.data.slots.forEach(key => {
+        const label = el('label', 'slot'), input = el('input');
+        input.type = 'radio';
+        input.name = 'slot';
+        input.value = key;
+        input.addEventListener('change', () => {
+          state.slot = key;
+          const c = state.view && state.view.colors[key];
+          if (c) near(c, false); else render();
+        });
+        label.dataset.slot = key;
+        label.append(input, el('span', 'chipdot'), el('span', '', key), el('span', 'ratio'));
+        box.insertBefore(label, first);
+      });
+    }
+    const colors = state.view ? state.view.colors : {};
+    box.querySelectorAll('.slot').forEach(label => {
+      const key = label.dataset.slot, c = colors[key], dot = label.querySelector('.chipdot');
+      label.querySelector('input').checked = key === state.slot;
+      dot.classList.toggle('unset', !c);
+      if (c) dot.style.setProperty('--c', c.hex); else dot.style.removeProperty('--c');
+      const ratio = label.querySelector('.ratio');
+      ratio.className = 'ratio' + (c && c.low ? ' warn' : '');
+      ratio.textContent = c && c.contrast != null ? c.contrast.toFixed(1) + ':1' : '';
+    });
+    const now = colors[state.slot];
+    if (now) $('custom').value = now.hex;
+    if (document.activeElement !== $('hex')) $('hex').value = now ? now.hex : '';
+    $('revert').disabled = !(state.slot in state.picks);
+  }
+
+  function tint(e, hex) {
+    if (hex) { e.classList.add('tint'); e.style.setProperty('--t', hex); }
+    return e;
+  }
+
   function render() {
     if (state.finished) return;
-    const data = state.data;
+    const data = state.data, view = state.view;
     $('gaps').replaceChildren(...data.gaps[state.band].map(swatch));
     if (state.clicked.length) $('clicked').replaceChildren(...state.clicked.map(swatch));
-    const term = $('term'), near = $('near'), name = symbol();
-    near.replaceChildren();
-    $('use').disabled = !state.sel;
-    if (state.sel) {
-      const p = state.sel;
-      term.style.setProperty('--c', p.hex);
-      term.style.setProperty('--f', p.light ? '#000000' : '#eeeeee');
-      term.replaceChildren();
-      if (glyphs[name]) term.append(glyph(name), ' ');
-      term.append(data.name + '\n$ cat .hued\n' + p.writes.concat(name ? ['sfkey=' + name] : []).join('\n'));
-      p.neighbors.forEach(n => {
-        const row = el('div', 'row'), dot = el('span', 'chipdot');
-        dot.style.setProperty('--c', n.hex);
-        row.append(dot, glyph(n.sfkey), el('span', 'name', n.name),
-          el('span', 'end' + (n.close ? ' warn' : ''), n.distance.toFixed(2)));
-        near.append(row);
-      });
-      const was = data.current.background;
-      $('note').textContent = 'Writes these lines to ' + data.target + '/.hued' +
-        (was ? ', replacing background=' + was + '.' : '.');
-    }
+    slotRow();
     renderSymbols();
     draw();
+    if (!view) return;
+    const c = view.colors, hex = key => c[key] && c[key].hex, term = $('term'), name = symbol();
+    if (hex('background')) term.style.setProperty('--c', hex('background'));
+    else term.style.removeProperty('--c');
+    term.style.setProperty('--f', view.text);
+    term.replaceChildren();
+    // Only the command is selectable, so copying the pane copies something to paste.
+    const who = el('span', 'deco');
+    if (glyphs[name]) who.append(glyph(name), ' ');
+    who.append(data.name || '~');
+    const branch = el('span', 'deco', '\nOn branch ');
+    branch.append(tint(el('span', '', 'main'), hex('accent2')), '\n');
+    term.append(tint(who, hex('accent')), branch,
+      tint(el('span', 'deco', '$ '), hex('accent3')),
+      view.command ? el('span', '', view.command) : el('span', 'deco', '# nothing changed yet'));
+    $('near').replaceChildren(...view.neighbors.map(n => {
+      const row = el('div', 'row'), dot = el('span', 'chipdot');
+      dot.style.setProperty('--c', n.hex);
+      row.append(dot, glyph(n.sfkey), el('span', 'name', n.name),
+        el('span', 'end' + (n.close ? ' warn' : ''), n.distance.toFixed(2)));
+      return row;
+    }));
+    $('use').disabled = !view.writes.length;
+    $('copy').disabled = !view.command;
+    $('note').className = 'note';
+    $('note').textContent = !view.writes.length ? '' : data.target
+      ? 'Writes these lines to ' + data.target + '/.hued. Other keys keep their values.'
+      : 'Prints these lines in the terminal.';
   }
 
   function pointer(e) {
@@ -313,16 +414,20 @@
     if (my < py || my > py + ph) return;
     const gray = mx >= gx && mx <= gx + gw;
     if (!gray && (mx < px || mx > px + pw)) return;
-    state.click = [mx, my];
+    near({ h: gray ? 0 : (mx - px) / pw * 360, l: 1 - (my - py) / ph, gray }, true);
+  });
+
+  // Offer the swatches around a spot on the map; `pick` also takes the first one.
+  function near(spot, pick) {
+    state.click = place(spot);
     draw();
-    getJSON('/near', { h: gray ? 0 : (mx - px) / pw * 360, l: 1 - (my - py) / ph, gray: gray ? 1 : 0 })
+    getJSON('/near', { h: spot.h, l: spot.l, gray: spot.gray ? 1 : 0 })
       .then(got => {
         state.clicked = got.swatches;
-        state.sel = got.swatches[0];
-        render();
+        if (pick) choose(got.swatches[0].hex); else render();
       })
       .catch(err => { $('note').textContent = String(err.message || err); });
-  });
+  }
 
   cv.addEventListener('mousemove', e => {
     if (!state.data) return;
@@ -341,8 +446,25 @@
   }));
 
   let pending = 0;
+  $('custom').addEventListener('input', e => choose(e.target.value.toLowerCase()));
+  $('hex').addEventListener('input', e => {
+    const v = e.target.value.trim().toLowerCase().replace(/^#?/, '#');
+    if (/^#[0-9a-f]{6}$/.test(v)) choose(v);
+  });
+  $('hex').addEventListener('blur', render);
+  $('revert').addEventListener('click', () => {
+    delete state.picks[state.slot];
+    refresh();
+  });
+
+  $('copy').addEventListener('click', () => {
+    navigator.clipboard.writeText(state.view.command).then(() => {
+      $('note').textContent = 'Copied. Paste it in any directory to set these there.';
+    }, err => { $('note').textContent = String(err.message || err); });
+  });
+
   $('sym').addEventListener('input', () => {
-    render();
+    refresh();
     if (!state.data.symbols.search) return;
     clearTimeout(pending);
     pending = setTimeout(() => {
@@ -357,14 +479,15 @@
   });
 
   $('use').addEventListener('click', () => {
-    if (!state.sel) return;
     $('use').disabled = true;
-    fetch(api('/use'), { method: 'POST', body: JSON.stringify({ background: state.sel.hex, sfkey: symbol() }) })
+    const body = Object.assign({}, state.picks, { sfkey: symbol() });
+    fetch(api('/use'), { method: 'POST', body: JSON.stringify(body) })
       .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t.trim() || 'write failed'); }))
       .then(got => {
         state.finished = true;
         const done = el('div', 'done');
-        done.append(el('h1', '', 'Written to ' + got.path), el('pre', '', got.written.join('\n')),
+        done.append(el('h1', '', got.path ? 'Written to ' + got.path : 'Sent to the terminal'),
+          el('pre', '', got.written.join('\n')),
           el('p', 'sub', 'You can close this tab.'));
         $('main').replaceChildren(done);
       })
@@ -386,15 +509,23 @@
       images.field = field;
       images.grays = grays;
       data.repos.forEach(r => { if (r.sfkey && !takenBy[r.sfkey]) takenBy[r.sfkey] = r.name; });
-      document.title = 'hued map — ' + data.name;
-      $('target').textContent = data.name;
-      $('sub').textContent = data.repos.length
-        ? 'Dots are the backgrounds in use under ' + data.root + '. Dashed rings are the widest gaps. ' +
-          'Click the map for swatches at that spot.'
-        : 'No .hued backgrounds found under ' + data.root + ', so every color is free.';
+      if (data.target) {
+        document.title = 'hued map — ' + data.name;
+        $('target').textContent = data.name;
+      } else {
+        document.title = 'hued pick';
+        $('title').textContent = 'Pick colors';
+        $('use').textContent = 'Print these';
+      }
+      const how = 'Choose what you are picking below, then a swatch, or click the map.';
+      $('sub').textContent = !data.root ? how
+        : data.repos.length
+          ? 'Dots are the backgrounds in use under ' + data.root + '. Dashed rings are the widest gaps. ' + how
+          : 'No .hued backgrounds found under ' + data.root + ', so every color is free. ' + how;
       if (data.current.sfkey) $('sym').value = data.current.sfkey;
       if (!data.symbols.search) $('sym').placeholder = 'SF Symbol name, e.g. leaf';
       render();
+      refresh();
       wantGlyphs(data.repos.map(r => r.sfkey).concat(data.current.sfkey || []));
     })
     .catch(err => { $('sub').textContent = 'Could not load: ' + String(err.message || err); });

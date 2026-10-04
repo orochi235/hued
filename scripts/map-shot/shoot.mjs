@@ -16,7 +16,7 @@ const repo = resolve(here, '..', '..');
 const out = resolve(process.argv[2] || join(repo, 'out', 'map-shot'));
 const chromePath = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const WIDTH = 1200, HEIGHT = 1500;
-const STEPS = 6;
+const STEPS = 8;
 let step = 0;
 const say = what => console.log(`${++step}/${STEPS} ${what}`);
 const sleep = ms => new Promise(done => setTimeout(done, ms));
@@ -149,11 +149,34 @@ async function main() {
   await sleep(300);
   await shoot('3-dark.png');
 
+  say('accent2 picked from a typed hex');
+  const [ax, ay] = await center('.slot[data-slot=accent2]');
+  await click(ax, ay);
+  await evaluate(`document.getElementById('hex').focus()`);
+  await page('Input.insertText', { text: '#ccff00' });
+  await sleep(600);
+  await shoot('4-accent.png');
+  const copied = await evaluate(`(() => {
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('term'));
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+    return getSelection().toString();
+  })()`);
+  if (!/^hued set \S/.test(copied) || copied.includes('\n')) problems.push(`preview copies as ${JSON.stringify(copied)}`);
+  console.log(`preview copies as: ${copied}`);
+
+  say('back on background, click swatches follow it');
+  const [bx, by] = await center('.slot[data-slot=background]');
+  await click(bx, by);
+  await sleep(600);
+  await shoot('5-slot.png');
+
   say('used it');
   const [ux, uy] = await center('#use');
   await click(ux, uy);
   await sleep(1000);
-  await shoot('4-written.png');
+  await shoot('6-written.png');
   const code = await Promise.race([exited, sleep(5000).then(() => 'still running')]);
 
   socket.close();

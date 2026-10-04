@@ -66,3 +66,8 @@ def test_unpack_skips_existing_without_force(tmp_path):
     assert "#000000" in (tmp_path / "r" / ".hued").read_text()
     files.unpack(export, force=True)
     assert "#ffffff" in (tmp_path / "r" / ".hued").read_text()
+
+
+def test_read_takes_a_key_s_last_line(tmp_path):
+    (tmp_path / ".hued").write_text("background=#111111\nbackground=#333333  # later\n")
+    assert files.read(tmp_path / ".hued") == {"background": "#333333"}

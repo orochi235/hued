@@ -116,3 +116,15 @@ def test_field_png_gets_lighter_toward_the_top():
     raw = zlib.decompress(png[png.index(b"IDAT") + 4:png.index(b"IEND") - 8])
     rows = [raw[i * 13 + 1:(i + 1) * 13] for i in range(8)]
     assert sum(rows[0]) > sum(rows[-1])
+
+
+def test_contrast_runs_from_one_to_twenty_one():
+    assert color.contrast("#000000", "#ffffff") == pytest.approx(21.0)
+    assert color.contrast("#ffffff", "#000000") == pytest.approx(21.0)
+    assert color.contrast("#777777", "#777777") == pytest.approx(1.0)
+
+
+def test_hex_round_trips_through_rgb():
+    for hexv in ("#000000", "#010203", "#ff0080", "#ffffff"):
+        assert color.rgb_to_hex(color.hex_to_rgb(hexv)) == hexv
+    assert color.hex_to_rgb("#f00") == color.RGB(255, 0, 0)

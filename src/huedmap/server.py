@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import shlex
 import socketserver
 import subprocess
 import threading
@@ -20,23 +21,58 @@ LEAVE_SECONDS = 2
 MAX_BODY = 64 * 1024
 HEX = re.compile(r"#[0-9a-f]{6}")
 DARK_TEXT = "#000000"
+# What a terminal shows when .hued sets no foreground; only the preview uses it.
+DEFAULT_TEXT = "#eeeeee"
+SLOTS = ("background", "foreground", "accent", "accent2", "accent3")
+# WCAG AA: body text needs 4.5:1; an accent is UI color or large text, which needs 3:1.
+MIN_CONTRAST = {"foreground": 4.5, "accent": 3.0, "accent2": 3.0, "accent3": 3.0}
 
 
-def writes(background: str, sfkey: str = "") -> list[tuple[str, str]]:
-    """The keys a pick sets, in the order they are written."""
-    out = [("bg", "background", background)]
-    if color.place(background)["light"]:
-        out.append(("fg", "foreground", DARK_TEXT))
-    if sfkey:
-        out.append(("sfkey", "sfkey", sfkey))
+def parse_pick(raw: dict, current: dict | None = None, xkcd: bool = False) -> dict:
+    """The slots and sfkey a pick changes. Values the file already holds are dropped, so
+    rewriting them cannot lose the color name kept beside them."""
+    current = current or {}
+    pick = {}
+    for key in SLOTS:
+        value = str(raw.get(key) or "").lower()
+        if not value:
+            continue
+        if not HEX.fullmatch(value):
+            raise ValueError(f"{key} must be #rrggbb")
+        if value != files.normalize(current.get(key, ""), xkcd)[0]:
+            pick[key] = value
+    sfkey = str(raw.get("sfkey") or "").strip()
+    if sfkey and not symbols.valid(sfkey):
+        raise ValueError("sfkey must be a symbol name")
+    if sfkey and sfkey != current.get("sfkey"):
+        pick["sfkey"] = sfkey
+    return pick
+
+
+def writes(pick: dict) -> list[tuple[str, str]]:
+    """The keys a pick sets, in the order they are written. A new light background
+    with no foreground chosen gets dark text."""
+    out = []
+    for key in SLOTS:
+        if pick.get(key):
+            out.append((key, pick[key]))
+        elif key == "foreground" and pick.get("background") and color.place(pick["background"])["light"]:
+            out.append((key, DARK_TEXT))
+    if pick.get("sfkey"):
+        out.append(("sfkey", pick["sfkey"]))
     return out
 
 
-def load_repos(root: str, target: str, xkcd: bool = False) -> list[dict]:
+def command(lines: list[tuple[str, str]]) -> str:
+    """The `hued set` line that applies a pick when pasted in a directory."""
+    return " ".join(["hued", "set"] + [shlex.quote(f"{key}={value}") for key, value in lines])
+
+
+def load_repos(root: str, target: str | None, xkcd: bool = False) -> list[dict]:
     """Every background in use under root, except the one in the directory being colored."""
     repos = []
     for path, config in files.scan(root).items():
-        if os.path.realpath(path) == os.path.realpath(target):
+        if target and os.path.realpath(path) == os.path.realpath(target):
             continue
         hexv, _ = files.normalize(config.get("background", ""), xkcd)
         if not HEX.fullmatch(hexv):
@@ -47,7 +83,9 @@ def load_repos(root: str, target: str, xkcd: bool = False) -> list[dict]:
 
 
 class App:
-    def __init__(self, repos, root, target, hued, token, index=None, glyphs=None, env=None):
+    def __init__(self, repos, root, target, hued, token, index=None, glyphs=None, env=None,
+                 xkcd=False):
+        """With target None the pick is only reported back, and no file is written."""
         self.repos = repos
         self.root = root
         self.target = target
@@ -56,6 +94,7 @@ class App:
         self.index = index
         self.glyphs = glyphs
         self.env = env
+        self.xkcd = xkcd
         self.done = threading.Event()
         self.written: list[str] = []
         self.last_request = time.monotonic()
@@ -65,21 +104,20 @@ class App:
     # --- what the page asks for ---
 
     def swatch(self, hexv: str, tag: str) -> dict:
-        return dict(color.place(hexv), tag=tag,
-                    neighbors=color.neighbors(hexv, self.repos),
-                    writes=[f"{key}={value}" for _, key, value in writes(hexv)])
+        return dict(color.place(hexv), tag=tag, neighbors=color.neighbors(hexv, self.repos))
+
+    def current(self) -> dict:
+        own = os.path.join(self.target, ".hued") if self.target else None
+        return files.read(own) if own and os.path.exists(own) else {}
 
     def data(self) -> dict:
         taken = [r["hex"] for r in self.repos]
-        current = {}
-        own = os.path.join(self.target, ".hued")
-        if os.path.exists(own):
-            current = files.read(own)
         return {
             "root": self.root,
             "target": self.target,
-            "name": os.path.basename(self.target),
-            "current": current,
+            "name": os.path.basename(self.target) if self.target else None,
+            "current": self.current(),
+            "slots": list(SLOTS),
             "repos": self.repos,
             "gaps": {band: [self.swatch(h, f"gap {i + 1}")
                             for i, h in enumerate(color.gaps(taken, band))]
@@ -96,6 +134,34 @@ class App:
         return {"swatches": [self.swatch(s["hex"], s["tag"])
                              for s in color.near(hue, lightness, gray)]}
 
+    def preview(self, query: dict) -> dict:
+        """What the page shows for a pick: the lines it writes, each slot's color as the
+        terminal will show it, and how each one reads against the background."""
+        current = self.current()
+        pick = parse_pick(query, current, self.xkcd)
+        lines = writes(pick)
+        shown = {}
+        for key in SLOTS:
+            hexv = dict(lines).get(key) or files.normalize(current.get(key, ""), self.xkcd)[0]
+            if HEX.fullmatch(hexv):
+                shown[key] = hexv
+        background = shown.get("background")
+        text = shown.get("foreground", DEFAULT_TEXT)
+        colors = {}
+        for key, hexv in shown.items():
+            entry = color.place(hexv)
+            if key != "background" and background:
+                ratio = color.contrast(hexv, background)
+                entry.update(contrast=round(ratio, 1), low=ratio < MIN_CONTRAST[key])
+            colors[key] = entry
+        return {
+            "writes": [f"{key}={value}" for key, value in lines],
+            "command": command(lines) if lines else "",
+            "colors": colors,
+            "text": text,
+            "neighbors": color.neighbors(background, self.repos) if background else [],
+        }
+
     def find_symbols(self, query: dict) -> dict:
         taken = {}
         for repo in self.repos:
@@ -109,22 +175,21 @@ class App:
         return self.glyphs.get(names) if self.glyphs else {}
 
     def use(self, body: bytes) -> dict:
-        pick = json.loads(body or b"{}")
-        background = str(pick.get("background", "")).lower()
-        sfkey = str(pick.get("sfkey", "")).strip()
-        if not HEX.fullmatch(background):
-            raise ValueError("background must be #rrggbb")
-        if sfkey and not symbols.valid(sfkey):
-            raise ValueError("sfkey must be a symbol name")
-        env = dict(os.environ, **(self.env or {}))
-        lines = []
-        for short, key, value in writes(background, sfkey):
-            subprocess.run([self.hued, "set", short, value], cwd=self.target, env=env,
-                           check=True, capture_output=True, text=True)
-            lines.append(f"{key}={value}")
-        self.written = lines
+        raw = json.loads(body or b"{}")
+        if not isinstance(raw, dict):
+            raise ValueError("body must be a JSON object")
+        lines = writes(parse_pick(raw, self.current(), self.xkcd))
+        if not lines:
+            raise ValueError("nothing to write")
+        if self.target:
+            env = dict(os.environ, **(self.env or {}))
+            for key, value in lines:
+                subprocess.run([self.hued, "set", key, value], cwd=self.target, env=env,
+                               check=True, capture_output=True, text=True)
+        self.written = [f"{key}={value}" for key, value in lines]
         self.done.set()
-        return {"written": lines, "path": os.path.join(self.target, ".hued")}
+        return {"written": self.written,
+                "path": os.path.join(self.target, ".hued") if self.target else None}
 
     def static(self, name: str) -> bytes:
         if name not in self._static:
@@ -157,6 +222,8 @@ class App:
                 return self._json(self.data())
             if route == ("GET", "/near"):
                 return self._json(self.near(query))
+            if route == ("GET", "/preview"):
+                return self._json(self.preview(query))
             if route == ("GET", "/symbols"):
                 return self._json(self.find_symbols(query))
             if route == ("GET", "/glyphs"):

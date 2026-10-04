@@ -300,3 +300,76 @@ teardown() {
   grep -qx "branch-hue=30deg..90deg" r/.hued
   grep -q "^background=#" r/.hued
 }
+
+@test "set/get/unset accent2 and accent3" {
+  run "$HUED" set accent2 limegreen
+  [ "$status" -eq 0 ]
+  run "$HUED" set accent3 "#ff00ff"
+  [ "$status" -eq 0 ]
+  grep -q "^accent2=#32cd32  # limegreen" .hued
+  run "$HUED" get accent3
+  [ "$output" = "#ff00ff" ]
+  run "$HUED" unset accent2
+  [ "$status" -eq 0 ]
+  ! grep -q "^accent2=" .hued
+  grep -q "^accent3=#ff00ff" .hued
+}
+
+@test "appended lines override earlier ones for get, bare and -a" {
+  printf "background=#111111\naccent=#222222\nforeground=#ffffff\n" > .hued
+  printf "background=#333333\naccent=#444444\n" >> .hued
+  run "$HUED" get bg
+  [ "$output" = "#333333" ]
+  run "$HUED" get accent
+  [ "$output" = "#444444" ]
+  run "$HUED"
+  [ "$output" = $'background=#333333\nforeground=#ffffff' ]
+  run "$HUED" -a
+  [ "$output" = $'background=#333333\naccent=#444444\nforeground=#ffffff' ]
+}
+
+@test "set: collapses a key written twice into one line" {
+  printf "background=#111111\nbackground=#333333\n" > .hued
+  run "$HUED" set bg "#555555"
+  [ "$(grep -c '^background=' .hued)" -eq 1 ]
+  grep -qx 'background=#555555' .hued
+}
+
+@test "set: several keys as key=value tokens" {
+  run "$HUED" set bg=#320053 accent2=limegreen sfkey=leaf
+  [ "$status" -eq 0 ]
+  grep -qx 'background=#320053' .hued
+  grep -qx 'accent2=#32cd32  # limegreen' .hued
+  grep -qx 'sfkey=leaf' .hued
+}
+
+@test "set: several keys as key value pairs" {
+  run "$HUED" set bg navy accent '#ccff00'
+  [ "$status" -eq 0 ]
+  grep -qx 'background=#000080  # navy' .hued
+  grep -qx 'accent=#ccff00' .hued
+}
+
+@test "set: one bad value among several writes nothing" {
+  printf "background=#111111\n" > .hued
+  run "$HUED" set bg=#222222 branch-hue=wide
+  [ "$status" -ne 0 ]
+  [ "$(cat .hued)" = "background=#111111" ]
+  run "$HUED" set bg=#222222 nosuchkey=1
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown key 'nosuchkey'"* ]]
+  [ "$(cat .hued)" = "background=#111111" ]
+}
+
+@test "set: a pair missing its value is an error" {
+  run "$HUED" set bg navy accent
+  [ "$status" -ne 0 ]
+  [ ! -f .hued ]
+}
+
+@test "set: takes what hued pick prints" {
+  run "$HUED" set $(printf 'background=#ffffc4\nforeground=#000000\naccent3=#ff00ff\n')
+  [ "$status" -eq 0 ]
+  grep -qx 'background=#ffffc4' .hued
+  grep -qx 'accent3=#ff00ff' .hued
+}

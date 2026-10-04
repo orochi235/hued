@@ -42,8 +42,8 @@ function _hued_apply --on-event fish_prompt
     set dir $PWD
     while test "$dir" != /
         if test -f "$dir/.hued"
-            set bg (grep -m1 '^background=' "$dir/.hued" | cut -d= -f2 | awk '{print $1}')
-            set fg (grep -m1 '^foreground=' "$dir/.hued" | cut -d= -f2 | awk '{print $1}')
+            set bg (grep '^background=' "$dir/.hued" | tail -n1 | cut -d= -f2 | awk '{print $1}')
+            set fg (grep '^foreground=' "$dir/.hued" | tail -n1 | cut -d= -f2 | awk '{print $1}')
             if test -n "$bg" -o -n "$fg"
                 break
             end

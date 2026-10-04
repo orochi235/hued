@@ -172,3 +172,9 @@ fish_apply() {
   run fish_apply HUED_BACKGROUND="None"
   [[ "$output" == *"$BG_RESET"* ]]
 }
+
+@test ".hued with a key twice: the later line wins" {
+  printf "background=#1a0a0a\nbackground=#c8ff59\n" > .hued
+  run fish_apply
+  [[ "$output" == *"${ESC}]11;rgb:c8/ff/59${BEL}"* ]]
+}

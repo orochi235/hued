@@ -200,7 +200,7 @@ _complete() {
 
 @test "completions: all three shells offer the new keys" {
   for f in completions/hued.bash completions/hued.fish completions/_hued; do
-    for key in accent branch-hue branch-lightness branch-chroma sfkey; do
+    for key in accent accent2 accent3 pick branch-hue branch-lightness branch-chroma sfkey; do
       grep -qF "$key" "$BATS_TEST_DIRNAME/../$f" || {
         echo "missing $key in $f"; return 1; }
     done

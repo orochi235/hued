@@ -183,3 +183,9 @@ teardown() {
   [[ "$output" == *"$BG_RESET"* ]]
   [[ "$output" == *"$FG_RESET"* ]]
 }
+
+@test ".hued with a key twice: the later line wins" {
+  printf "background=#1a0a0a\nbackground=#c8ff59\n" > .hued
+  run _hued_apply_fallback
+  [[ "$output" == *"${ESC}]11;rgb:c8/ff/59${BEL}"* ]]
+}

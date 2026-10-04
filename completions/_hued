@@ -11,8 +11,8 @@ _hued_colors() {
   grep -o '^ *\[[^]]*\]' "$names_file" | tr -d '[] ' | grep -v '^xkcd:'
 }
 
-_HUED_KEYS="bg fg accent branch-hue branch-lightness branch-chroma sfkey"
-_HUED_KEY_DESCRIPTIONS='bg\:"background color" fg\:"foreground color" accent\:"accent color" branch-hue\:"branch minting hue range" branch-lightness\:"branch minting lightness range" branch-chroma\:"branch minting chroma range" sfkey\:"SF Symbol name"'
+_HUED_KEYS="bg fg accent accent2 accent3 branch-hue branch-lightness branch-chroma sfkey"
+_HUED_KEY_DESCRIPTIONS='bg\:"background color" fg\:"foreground color" accent\:"accent color" accent2\:"second accent color" accent3\:"third accent color" branch-hue\:"branch minting hue range" branch-lightness\:"branch minting lightness range" branch-chroma\:"branch minting chroma range" sfkey\:"SF Symbol name"'
 
 _hued() {
   local state
@@ -36,6 +36,7 @@ _hued() {
         'pack:generate a JSON map of .hued configs from a directory tree'
         'unpack:restore .hued files from a JSON map'
         'map:open a page of the colors in use and pick an unused one'
+        'pick:pick colors interactively and print them, without touching .hued'
       )
       _describe 'subcommand' subcommands
       ;;

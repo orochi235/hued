@@ -88,3 +88,54 @@ _start() {
   run "$HUED" --no-such-flag
   [[ "$output" == *"map [<dir>] [--no-open]"* ]]
 }
+
+# Like _start, but for `hued pick`, whose URL goes to stderr and pick to stdout.
+_start_pick() {
+  HUED_TTY=/dev/null "$HUED" pick "$@" --no-open > "$TMPDIR/out" 2> "$TMPDIR/err" 3>&- &
+  MAP_PID=$!
+  URL=""
+  for _ in $(seq 1 100); do
+    URL="$(grep -m1 '^http://127.0.0.1:' "$TMPDIR/err" || true)"
+    [[ -n "$URL" ]] && return 0
+    sleep 0.1
+  done
+  cat "$TMPDIR/err" >&2
+  return 1
+}
+
+@test "map: a pick can set accents and leave the background alone" {
+  printf 'background=#123456\n' > .hued
+  _start
+  run curl -s -X POST -d '{"accent":"#ccff00","accent3":"#ff00ff"}' "${URL/\/\?//use?}"
+  wait "$MAP_PID"
+  MAP_PID=""
+  grep -qx 'background=#123456' .hued
+  grep -qx 'accent=#ccff00' .hued
+  grep -qx 'accent3=#ff00ff' .hued
+}
+
+@test "pick: prints the pick to stdout and writes no file" {
+  printf 'background=#123456\n' > .hued
+  _start_pick
+  ! grep -q Scanning "$TMPDIR/err"
+  run curl -s -X POST -d '{"background":"#ffffc4","accent2":"#ff0000"}' "${URL/\/\?//use?}"
+  wait "$MAP_PID"
+  MAP_PID=""
+  [ "$(cat "$TMPDIR/out")" = $'background=#ffffc4\nforeground=#000000\naccent2=#ff0000' ]
+  [ "$(cat .hued)" = 'background=#123456' ]
+}
+
+@test "pick: scans a directory only when given one" {
+  _start_pick "$TMPDIR"
+  grep -q "Found 1 backgrounds in use" "$TMPDIR/err"
+}
+
+@test "-i: opens the map" {
+  HUED_TTY=/dev/null "$HUED" -i --no-open > "$TMPDIR/out" 2>&1 3>&- &
+  MAP_PID=$!
+  for _ in $(seq 1 100); do
+    grep -q '^http://127.0.0.1:' "$TMPDIR/out" && break
+    sleep 0.1
+  done
+  grep -q "Scanning $TMPDIR " "$TMPDIR/out"
+}

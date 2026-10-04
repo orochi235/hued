@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# hued-pick — launch the interactive color picker (Python implementation)
-set -euo pipefail
-
-exec "$(dirname "$0")/hued-py" picker "$@"

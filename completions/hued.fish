@@ -1,7 +1,7 @@
 set -l names_file "$HOMEBREW_PREFIX/share/hued-names.sh"
-set -l subcommands set unset fork get mod apply where resolve pack unpack map
-set -l keys bg fg accent branch-hue branch-lightness branch-chroma sfkey
-set -l color_keys bg fg accent
+set -l subcommands set unset fork get mod apply where resolve pack unpack map pick
+set -l keys bg fg accent accent2 accent3 branch-hue branch-lightness branch-chroma sfkey
+set -l color_keys bg fg accent accent2 accent3
 set -l mod_ops darken lighten saturate desaturate rotate complement to-gray mix lightness saturation hue
 
 complete -c hued -f
@@ -16,11 +16,14 @@ complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "resolve" 
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "pack"    -d "Generate a JSON map of .hued configs from a directory tree"
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "unpack"  -d "Restore .hued files from a JSON map"
 complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "map"     -d "Open a page of the colors in use and pick an unused one"
+complete -c hued -n "not __fish_seen_subcommand_from $subcommands" -a "pick"    -d "Pick colors interactively and print them, without touching .hued"
 
 for sub in set get unset
   complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "bg"               -d "Background color"
   complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "fg"               -d "Foreground color"
   complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "accent"           -d "Accent color"
+  complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "accent2"          -d "Second accent color"
+  complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "accent3"          -d "Third accent color"
   complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "branch-hue"       -d "Branch minting hue range"
   complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "branch-lightness" -d "Branch minting lightness range"
   complete -c hued -n "__fish_seen_subcommand_from $sub; and not __fish_seen_subcommand_from $keys" -a "branch-chroma"    -d "Branch minting chroma range"
