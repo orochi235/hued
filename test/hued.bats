@@ -4,6 +4,7 @@ HUED="$BATS_TEST_DIRNAME/../bin/hued"
 
 setup() {
   WORK="$(mktemp -d)"
+  export XDG_CACHE_HOME="$WORK/.cache"
   cd "$WORK"
 }
 

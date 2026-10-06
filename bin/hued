@@ -279,6 +279,7 @@ _hued_put_line() {
   else
     printf "# https://github.com/orochi235/hued\n%s\n" "$line" > .hued
   fi
+  "$(dirname "$0")/hued-py" huedmap.index add "$PWD" || true
 }
 
 # Print the .hued line for one key, or an error and return 1. Validates without

@@ -13,7 +13,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-from . import color, files, symbols
+from . import color, files, index, symbols
 
 IDLE_SECONDS = 15 * 60
 # A reload closes the page and reopens it; wait this long for the reopen before treating it as goodbye.
@@ -84,7 +84,8 @@ def command(lines: list[tuple[str, str]]) -> str:
 def load_repos(root: str, target: str | None, xkcd: bool = False) -> list[dict]:
     """Every background in use under root, except the one in the directory being colored."""
     repos = []
-    for path, config in files.scan(root).items():
+    root = os.path.realpath(root)
+    for path, config in index.configs(root).items():
         if target and os.path.realpath(path) == os.path.realpath(target):
             continue
         hexv, _ = files.normalize(config.get("background", ""), xkcd)

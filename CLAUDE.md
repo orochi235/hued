@@ -16,7 +16,8 @@ colors: background, foreground and the three accents, with every background
 already in use plotted. `hued pick` is the same page with no target directory;
 it prints the pick instead of writing it. It lives in `src/huedmap/`,
 stdlib-only Python, and also holds the `.hued` scanner that `pack` and `unpack`
-call. All of its color math is in Python; `page.html` only draws what the
+call, and the index of known `.hued` directories (`index.py`) that `map` reads
+instead of walking. All of its color math is in Python; `page.html` only draws what the
 server sends. `bin/hued-py` launches it.
 
 To look at the page without opening a browser, run

@@ -7,6 +7,7 @@ HUED="$BATS_TEST_DIRNAME/../bin/hued"
 
 setup() {
   WORK="$(cd "$(mktemp -d)" && pwd -P)"
+  export XDG_CACHE_HOME="$WORK/.cache"
   mkdir -p "$WORK/taken" "$WORK/new"
   printf 'background=#ff0000\nsfkey=leaf\n' > "$WORK/taken/.hued"
   cd "$WORK/new"
@@ -138,4 +139,17 @@ _start_pick() {
     sleep 0.1
   done
   grep -q "Scanning $WORK " "$WORK/out"
+}
+
+@test "map: reads the index once seeded; hued set adds to it and pack catches the rest" {
+  _start; kill "$MAP_PID"; wait "$MAP_PID" 2>/dev/null || true; MAP_PID=""
+  grep -qx "$WORK/taken" "$XDG_CACHE_HOME/hued/index"
+  mkdir "$WORK/by-hand" "$WORK/by-set"
+  printf 'background=#00ff00\n' > "$WORK/by-hand/.hued"
+  (cd "$WORK/by-set" && "$HUED" set bg '#0000ff' >/dev/null)
+  _start; kill "$MAP_PID"; wait "$MAP_PID" 2>/dev/null || true; MAP_PID=""
+  grep -q "Found 2 backgrounds in use" "$WORK/out"
+  "$HUED" pack "$WORK" >/dev/null
+  _start
+  grep -q "Found 3 backgrounds in use" "$WORK/out"
 }

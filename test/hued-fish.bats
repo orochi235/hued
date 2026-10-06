@@ -10,6 +10,7 @@ FG_RESET="${ESC}]110;${BEL}"
 setup() {
   command -v fish >/dev/null || skip "fish not installed"
   WORK="$(mktemp -d)"
+  export XDG_CACHE_HOME="$WORK/.cache"
   cd "$WORK"
 }
 

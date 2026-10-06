@@ -190,7 +190,7 @@ Ops:
 - `lightness`, `saturation` — `<value>`, e.g. `40%`, `+10%`
 - `hue` — `<degrees>`, e.g. `200deg`, `+30deg`
 
-`pack` defaults to the current directory if none is given, and does not look inside `.git`, `node_modules`, `.venv`, `venv` or `__pycache__`. `unpack` skips existing `.hued` files unless `--force` is passed. `get`, `mod`, and `resolve` all shell out to [`pastel`](https://github.com/sharkdp/pastel) (`brew install pastel`); `pastel` accepts named colors, hex, `rgb()`, `hsl()`, etc.
+`pack` defaults to the current directory if none is given, and does not look inside `.git`, `node_modules`, `.venv`, `venv` or `__pycache__`. `unpack` skips existing `.hued` files unless `--force` is passed. `mod` and `resolve` shell out to [`pastel`](https://github.com/sharkdp/pastel) (`brew install pastel`), and so does `get` for a value that is neither hex nor a color name; `pastel` accepts named colors, hex, `rgb()`, `hsl()`, etc.
 
 ## Picking a color nothing else uses
 
@@ -234,6 +234,11 @@ hued pick [<dir>] [--no-open]
 ```
 
 `<dir>` is the directory to scan, the parent of the current one by default.
+The first run walks it; later runs read an index of the directories holding a
+`.hued`, kept in `~/.cache/hued/index` (under `$XDG_CACHE_HOME` when set).
+`hued set` and `unpack` add to it, and a directory whose `.hued` is gone drops
+out. A `.hued` written some other way, by hand or by a `git clone`, shows up
+once `hued pack` walks the tree that holds it.
 `--no-open` prints the page's URL instead of opening a browser. `hued -i` is
 another name for `hued map`.
 

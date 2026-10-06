@@ -6,6 +6,7 @@ import os
 import re
 import sys
 
+from . import index
 from .names import NAMED_COLORS, XKCD_OVERRIDES
 
 HEADER = "# https://github.com/orochi235/hued\n"
@@ -80,6 +81,7 @@ def unpack(path, force: bool, xkcd: bool = False) -> None:
                     continue
                 hexv, name = normalize(value, xkcd)
                 f.write(f"{key}={hexv}  # {name}\n" if name else f"{key}={hexv}\n")
+        index.add(dirpath)
         print(f"Wrote {hued_path}")
 
 
@@ -87,7 +89,9 @@ def main(argv: list[str]) -> int:
     xkcd = "--xkcd" in argv
     args = [a for a in argv if a != "--xkcd"]
     if len(args) == 2 and args[0] == "pack":
-        print(json.dumps(scan(args[1]), indent=2))
+        found = scan(args[1])
+        index.refresh(args[1], found)
+        print(json.dumps(found, indent=2))
         return 0
     if len(args) == 3 and args[0] == "unpack":
         unpack(args[1], force=args[2] == "1", xkcd=xkcd)

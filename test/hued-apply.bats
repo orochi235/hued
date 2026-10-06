@@ -9,6 +9,7 @@ FG_RESET="${ESC}]110;${BEL}"
 
 setup() {
   WORK="$(mktemp -d)"
+  export XDG_CACHE_HOME="$WORK/.cache"
   cd "$WORK"
   unset HUED_BACKGROUND HUED_FOREGROUND HUED_LOOKUP_PREFER_XKCD
   OUT="$WORK/tty.out"
