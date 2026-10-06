@@ -1,0 +1,7 @@
+# How `onto test` runs this repository's suite on another node.
+enlist: 3
+run: make test
+# python@3.12 is what the Homebrew formula runs hued under.
+setup: python3.12 -m venv .venv && .venv/bin/pip install --isolated -q -r requirements-dev.txt
+use: venv
+needs: .venv
