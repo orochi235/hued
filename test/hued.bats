@@ -420,7 +420,7 @@ teardown() {
 
 @test "get bg: fails when pastel is not installed" {
   command -v pastel >/dev/null 2>&1 && skip "pastel is installed"
-  printf "background=#1a0a0a\n" > .hued
+  printf "background=rgb(26,10,10)\n" > .hued
   run "$HUED" get bg
   [ "$status" -eq 1 ]
   [[ "$output" == *"requires 'pastel'"* ]]
