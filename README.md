@@ -60,13 +60,15 @@ branch-hue=+30deg..+90deg   # the range a per-branch color is minted from
 branch-lightness=22%..38%
 branch-chroma=70%..100%
 sfkey=paintbrush.pointed.fill  # an SF Symbol name, for tools that draw an icon
+slug=portfolio              # a short name, for tools that label the directory
 ```
 
 `accent`, `accent2` and `accent3` are colors like the other two, names and all. The `branch-*` keys are
 ranges: a signed endpoint is relative to this repo's own color, an unsigned one
 is absolute, and a range has to be all one or the other — the same rule `mod`
-uses. A lone value stands for a degenerate range. `sfkey` is stored as given,
-even when it happens to be a color name too, like `leaf`.
+uses. A lone value stands for a degenerate range. `sfkey` and `slug` are stored
+as given, even when one happens to be a color name too, like `leaf`. `slug` names the directory where
+its own name does not, such as a checkout whose remote is called something else.
 
 `get`, `set` and `unset` take any of these keys:
 
@@ -214,6 +216,7 @@ to right and lightness bottom to top, with grays in a column of their own.
   chosen from the system color panel. Each key shows its contrast against the
   background, in orange when it falls under 4.5:1 for `foreground` or 3:1 for
   an accent.
+- **Slug** sets `slug`; left empty, the directory keeps its own name.
 - **Symbol** sets `sfkey`, and marks a symbol another directory already uses.
 
 The preview shows the `hued set` command for what you changed, and "copy

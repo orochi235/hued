@@ -282,6 +282,24 @@ teardown() {
   [ "$status" -eq 1 ]
 }
 
+@test "set slug: stores the name verbatim" {
+  run "$HUED" set slug portfolio
+  [ "$status" -eq 0 ]
+  grep -qx "slug=portfolio" .hued
+}
+
+@test "set slug: rejects whitespace" {
+  run "$HUED" set slug "my portfolio"
+  [ "$status" -ne 0 ]
+}
+
+@test "get slug: prints the stored name" {
+  printf "background=#470013\nslug=portfolio\n" > .hued
+  run "$HUED" get slug
+  [ "$status" -eq 0 ]
+  [ "$output" = "portfolio" ]
+}
+
 @test "unset sfkey: removes it, keeps background" {
   printf "background=#470013\nsfkey=leaf\n" > .hued
   run "$HUED" unset sfkey

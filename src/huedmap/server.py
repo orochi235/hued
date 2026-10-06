@@ -23,13 +23,20 @@ HEX = re.compile(r"#[0-9a-f]{6}")
 DARK_TEXT = "#000000"
 # What a terminal shows when .hued sets no foreground; only the preview uses it.
 DEFAULT_TEXT = "#eeeeee"
+# What `hued set` takes for a text key: one token, since parsers keep only the first.
+WORD = re.compile(r"[^\s#]+")
+PAGE_FILES = {
+    "page.html": "text/html; charset=utf-8",
+    "page.css": "text/css; charset=utf-8",
+    "page.js": "text/javascript; charset=utf-8",
+}
 SLOTS = ("background", "foreground", "accent", "accent2", "accent3")
 # WCAG AA: body text needs 4.5:1; an accent is UI color or large text, which needs 3:1.
 MIN_CONTRAST = {"foreground": 4.5, "accent": 3.0, "accent2": 3.0, "accent3": 3.0}
 
 
 def parse_pick(raw: dict, current: dict | None = None, xkcd: bool = False) -> dict:
-    """The slots and sfkey a pick changes. Values the file already holds are dropped, so
+    """The slots, sfkey and slug a pick changes. Values the file already holds are dropped, so
     rewriting them cannot lose the color name kept beside them."""
     current = current or {}
     pick = {}
@@ -46,6 +53,11 @@ def parse_pick(raw: dict, current: dict | None = None, xkcd: bool = False) -> di
         raise ValueError("sfkey must be a symbol name")
     if sfkey and sfkey != current.get("sfkey"):
         pick["sfkey"] = sfkey
+    slug = str(raw.get("slug") or "").strip()
+    if slug and not WORD.fullmatch(slug):
+        raise ValueError("slug must be one word, with no spaces or #")
+    if slug and slug != current.get("slug"):
+        pick["slug"] = slug
     return pick
 
 
@@ -58,8 +70,9 @@ def writes(pick: dict) -> list[tuple[str, str]]:
             out.append((key, pick[key]))
         elif key == "foreground" and pick.get("background") and color.place(pick["background"])["light"]:
             out.append((key, DARK_TEXT))
-    if pick.get("sfkey"):
-        out.append(("sfkey", pick["sfkey"]))
+    for key in ("sfkey", "slug"):
+        if pick.get(key):
+            out.append((key, pick[key]))
     return out
 
 
@@ -193,9 +206,9 @@ class App:
 
     def static(self, name: str) -> bytes:
         if name not in self._static:
-            if name == "page.html":
+            if name in PAGE_FILES:
                 here = os.path.dirname(os.path.abspath(__file__))
-                with open(os.path.join(here, "page.html"), "rb") as f:
+                with open(os.path.join(here, name), "rb") as f:
                     self._static[name] = f.read()
             elif name == "field.png":
                 self._static[name] = color.field_png()
@@ -208,6 +221,10 @@ class App:
     def handle(self, method: str, target: str, body: bytes = b"") -> tuple[int, str, bytes]:
         url = urlsplit(target)
         query = {k: v[-1] for k, v in parse_qs(url.query).items()}
+        # The page's own stylesheet and script hold nothing private, and the page links them
+        # without the token it reads from its URL.
+        if method == "GET" and url.path[1:] in PAGE_FILES and url.path != "/page.html":
+            return 200, PAGE_FILES[url.path[1:]], self.static(url.path[1:])
         if query.get("t") != self.token:
             return 403, "text/plain", b"forbidden\n"
         self.last_request = time.monotonic()

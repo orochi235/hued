@@ -203,7 +203,7 @@ _hued_read_stdin_color() {
 
 # The keys `.hued` understands. Color keys hold a color; policy keys hold a
 # minting range and text keys a bare token, both for external tools.
-_HUED_KEY_LIST="bg|fg|accent|accent2|accent3|branch-hue|branch-lightness|branch-chroma|sfkey"
+_HUED_KEY_LIST="bg|fg|accent|accent2|accent3|branch-hue|branch-lightness|branch-chroma|sfkey|slug"
 
 # Canonicalize a key argument, or return 1 if it is not one of ours.
 _hued_key() {
@@ -211,13 +211,13 @@ _hued_key() {
     bg|background) printf 'background' ;;
     fg|foreground) printf 'foreground' ;;
     accent|accent2|accent3) printf '%s' "$1" ;;
-    branch-hue|branch-lightness|branch-chroma|sfkey) printf '%s' "$1" ;;
+    branch-hue|branch-lightness|branch-chroma|sfkey|slug) printf '%s' "$1" ;;
     *) return 1 ;;
   esac
 }
 
 _hued_is_policy_key() { [[ "$1" == branch-* ]]; }
-_hued_is_text_key() { [[ "$1" == sfkey ]]; }
+_hued_is_text_key() { [[ "$1" == sfkey || "$1" == slug ]]; }
 
 # Validate one endpoint of a policy range, printing "<canonical>|<signed>".
 # Prints its own error and returns 1 on failure.

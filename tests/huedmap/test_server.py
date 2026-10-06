@@ -80,6 +80,18 @@ def test_parse_pick_drops_what_the_file_already_holds():
     assert pick == {"accent2": "#123456"}
 
 
+def test_parse_pick_takes_a_slug_and_writes_it_last():
+    pick = server.parse_pick({"background": "#320053", "slug": "portfolio"}, {"slug": "old"})
+    assert pick == {"background": "#320053", "slug": "portfolio"}
+    assert server.writes(pick)[-1] == ("slug", "portfolio")
+    assert server.parse_pick({"slug": "portfolio"}, {"slug": "portfolio"}) == {}
+
+
+def test_parse_pick_refuses_a_slug_hued_set_would_refuse():
+    with pytest.raises(ValueError):
+        server.parse_pick({"slug": "my portfolio"})
+
+
 @pytest.mark.parametrize("path", ["/", "/data", "/field.png", "/?t=wrong", "/near?h=1&l=0.5"])
 def test_requests_without_the_token_are_refused(app, path):
     assert get(app, path)[0] == 403
@@ -98,6 +110,13 @@ def test_page_and_images_are_served(app):
     assert b"<canvas" in body
     for name in ("field.png", "grays.png"):
         assert get(app, f"/{name}?t={TOKEN}")[1][:4] == b"\x89PNG"
+
+
+def test_the_pages_stylesheet_and_script_need_no_token(app):
+    for name, kind in (("page.css", "text/css"), ("page.js", "text/javascript")):
+        status, served, body = app.handle("GET", f"/{name}")
+        assert (status, served.split(";")[0]) == (200, kind) and body
+    assert get(app, "/page.html")[0] == 403
 
 
 def test_unknown_path_is_not_found(app):
