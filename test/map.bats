@@ -6,37 +6,37 @@
 HUED="$BATS_TEST_DIRNAME/../bin/hued"
 
 setup() {
-  TMPDIR="$(cd "$(mktemp -d)" && pwd -P)"
-  mkdir -p "$TMPDIR/taken" "$TMPDIR/new"
-  printf 'background=#ff0000\nsfkey=leaf\n' > "$TMPDIR/taken/.hued"
-  cd "$TMPDIR/new"
+  WORK="$(cd "$(mktemp -d)" && pwd -P)"
+  mkdir -p "$WORK/taken" "$WORK/new"
+  printf 'background=#ff0000\nsfkey=leaf\n' > "$WORK/taken/.hued"
+  cd "$WORK/new"
   MAP_PID=""
 }
 
 teardown() {
   [[ -n "$MAP_PID" ]] && kill "$MAP_PID" 2>/dev/null || true
-  rm -rf "$TMPDIR"
+  [ -z "${WORK:-}" ] || rm -rf "$WORK"
 }
 
 # Start hued map in the background and wait for it to print its URL.
 _start() {
   # 3>&-: bats waits on anything still holding its output descriptor.
-  HUED_TTY=/dev/null "$HUED" map "$@" --no-open > "$TMPDIR/out" 2>&1 3>&- &
+  HUED_TTY=/dev/null "$HUED" map "$@" --no-open > "$WORK/out" 2>&1 3>&- &
   MAP_PID=$!
   URL=""
   for _ in $(seq 1 100); do
-    URL="$(grep -m1 '^http://127.0.0.1:' "$TMPDIR/out" || true)"
+    URL="$(grep -m1 '^http://127.0.0.1:' "$WORK/out" || true)"
     [[ -n "$URL" ]] && return 0
     sleep 0.1
   done
-  cat "$TMPDIR/out" >&2
+  cat "$WORK/out" >&2
   return 1
 }
 
 @test "map: scans the parent directory by default and prints a loopback URL" {
   _start
-  grep -q "Scanning $TMPDIR " "$TMPDIR/out"
-  grep -q "Found 1 backgrounds in use" "$TMPDIR/out"
+  grep -q "Scanning $WORK " "$WORK/out"
+  grep -q "Found 1 backgrounds in use" "$WORK/out"
   [[ "$URL" == http://127.0.0.1:*"/?t="* ]]
 }
 
@@ -57,7 +57,7 @@ _start() {
   grep -qx 'background=#320053' .hued
   grep -qx 'sfkey=bolt' .hued
   ! grep -q '^foreground=' .hued
-  grep -q "Wrote $TMPDIR/new/.hued" "$TMPDIR/out"
+  grep -q "Wrote $WORK/new/.hued" "$WORK/out"
 }
 
 # TERM rather than INT: a shell without job control starts background jobs with INT ignored.
@@ -67,19 +67,19 @@ _start() {
   wait "$MAP_PID" || true
   MAP_PID=""
   [ ! -f .hued ]
-  grep -q "Nothing written" "$TMPDIR/out"
+  grep -q "Nothing written" "$WORK/out"
 }
 
 @test "map: takes the directory to scan as an argument" {
-  mkdir -p "$TMPDIR/elsewhere/a" "$TMPDIR/elsewhere/b"
-  printf 'background=#111111\n' > "$TMPDIR/elsewhere/a/.hued"
-  printf 'background=#222222\n' > "$TMPDIR/elsewhere/b/.hued"
-  _start "$TMPDIR/elsewhere"
-  grep -q "Found 2 backgrounds in use" "$TMPDIR/out"
+  mkdir -p "$WORK/elsewhere/a" "$WORK/elsewhere/b"
+  printf 'background=#111111\n' > "$WORK/elsewhere/a/.hued"
+  printf 'background=#222222\n' > "$WORK/elsewhere/b/.hued"
+  _start "$WORK/elsewhere"
+  grep -q "Found 2 backgrounds in use" "$WORK/out"
 }
 
 @test "map: a directory that does not exist is an error" {
-  run "$HUED" map "$TMPDIR/nope" --no-open
+  run "$HUED" map "$WORK/nope" --no-open
   [ "$status" -eq 1 ]
   [[ "$output" == *"is not a directory"* ]]
 }
@@ -91,15 +91,15 @@ _start() {
 
 # Like _start, but for `hued pick`, whose URL goes to stderr and pick to stdout.
 _start_pick() {
-  HUED_TTY=/dev/null "$HUED" pick "$@" --no-open > "$TMPDIR/out" 2> "$TMPDIR/err" 3>&- &
+  HUED_TTY=/dev/null "$HUED" pick "$@" --no-open > "$WORK/out" 2> "$WORK/err" 3>&- &
   MAP_PID=$!
   URL=""
   for _ in $(seq 1 100); do
-    URL="$(grep -m1 '^http://127.0.0.1:' "$TMPDIR/err" || true)"
+    URL="$(grep -m1 '^http://127.0.0.1:' "$WORK/err" || true)"
     [[ -n "$URL" ]] && return 0
     sleep 0.1
   done
-  cat "$TMPDIR/err" >&2
+  cat "$WORK/err" >&2
   return 1
 }
 
@@ -117,25 +117,25 @@ _start_pick() {
 @test "pick: prints the pick to stdout and writes no file" {
   printf 'background=#123456\n' > .hued
   _start_pick
-  ! grep -q Scanning "$TMPDIR/err"
+  ! grep -q Scanning "$WORK/err"
   run curl -s -X POST -d '{"background":"#ffffc4","accent2":"#ff0000"}' "${URL/\/\?//use?}"
   wait "$MAP_PID"
   MAP_PID=""
-  [ "$(cat "$TMPDIR/out")" = $'background=#ffffc4\nforeground=#000000\naccent2=#ff0000' ]
+  [ "$(cat "$WORK/out")" = $'background=#ffffc4\nforeground=#000000\naccent2=#ff0000' ]
   [ "$(cat .hued)" = 'background=#123456' ]
 }
 
 @test "pick: scans a directory only when given one" {
-  _start_pick "$TMPDIR"
-  grep -q "Found 1 backgrounds in use" "$TMPDIR/err"
+  _start_pick "$WORK"
+  grep -q "Found 1 backgrounds in use" "$WORK/err"
 }
 
 @test "-i: opens the map" {
-  HUED_TTY=/dev/null "$HUED" -i --no-open > "$TMPDIR/out" 2>&1 3>&- &
+  HUED_TTY=/dev/null "$HUED" -i --no-open > "$WORK/out" 2>&1 3>&- &
   MAP_PID=$!
   for _ in $(seq 1 100); do
-    grep -q '^http://127.0.0.1:' "$TMPDIR/out" && break
+    grep -q '^http://127.0.0.1:' "$WORK/out" && break
     sleep 0.1
   done
-  grep -q "Scanning $TMPDIR " "$TMPDIR/out"
+  grep -q "Scanning $WORK " "$WORK/out"
 }

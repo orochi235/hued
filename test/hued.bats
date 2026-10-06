@@ -3,12 +3,12 @@
 HUED="$BATS_TEST_DIRNAME/../bin/hued"
 
 setup() {
-  TMPDIR="$(mktemp -d)"
-  cd "$TMPDIR"
+  WORK="$(mktemp -d)"
+  cd "$WORK"
 }
 
 teardown() {
-  rm -rf "$TMPDIR"
+  [ -z "${WORK:-}" ] || rm -rf "$WORK"
 }
 
 # --- no-arg: print current colors ---
@@ -989,7 +989,7 @@ teardown() {
   mkdir -p a b
   printf "background=#111111\n" > a/.hued
   printf "background=#222222\n" > b/.hued
-  run "$HUED" pack "$TMPDIR"
+  run "$HUED" pack "$WORK"
   [ "$status" -eq 0 ]
   [[ "$output" == *'"background"'* ]]
   [[ "$output" == *"#111111"* ]]
@@ -1006,7 +1006,7 @@ teardown() {
 
 @test "pack -o: writes json to file" {
   printf "background=#111111\n" > .hued
-  run "$HUED" pack "$TMPDIR" -o out.json
+  run "$HUED" pack "$WORK" -o out.json
   [ "$status" -eq 0 ]
   [ -f out.json ]
   grep -q "#111111" out.json
@@ -1015,7 +1015,7 @@ teardown() {
 @test "pack: ignores directories without .hued" {
   mkdir -p a b
   printf "background=#111111\n" > a/.hued
-  run "$HUED" pack "$TMPDIR"
+  run "$HUED" pack "$WORK"
   [ "$status" -eq 0 ]
   [[ "$output" != *'"b"'* ]]
 }
@@ -1024,7 +1024,7 @@ teardown() {
 
 @test "unpack: creates .hued files from json" {
   mkdir -p target
-  printf '{ "%s/target": { "background": "#abcdef" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "#abcdef" } }' "$WORK" > hued.json
   run "$HUED" unpack hued.json
   [ "$status" -eq 0 ]
   grep -q "background=#abcdef" target/.hued
@@ -1033,7 +1033,7 @@ teardown() {
 @test "unpack: skips existing .hued without --force" {
   mkdir -p target
   printf "background=#000000\n" > target/.hued
-  printf '{ "%s/target": { "background": "#abcdef" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "#abcdef" } }' "$WORK" > hued.json
   run "$HUED" unpack hued.json
   grep -q "background=#000000" target/.hued
 }
@@ -1041,7 +1041,7 @@ teardown() {
 @test "unpack --force: overwrites existing .hued" {
   mkdir -p target
   printf "background=#000000\n" > target/.hued
-  printf '{ "%s/target": { "background": "#abcdef" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "#abcdef" } }' "$WORK" > hued.json
   run "$HUED" unpack hued.json --force
   [ "$status" -eq 0 ]
   grep -q "background=#abcdef" target/.hued
@@ -1096,7 +1096,7 @@ teardown() {
 
 @test "pack: strips inline name comment to bare hex" {
   printf "background=#f0f8ff  # aliceblue\n" > .hued
-  run "$HUED" pack "$TMPDIR"
+  run "$HUED" pack "$WORK"
   [ "$status" -eq 0 ]
   [[ "$output" == *'"#f0f8ff"'* ]]
   [[ "$output" != *"aliceblue"* ]]
@@ -1104,7 +1104,7 @@ teardown() {
 
 @test "unpack: normalizes named color to hex with comment" {
   mkdir -p target
-  printf '{ "%s/target": { "background": "aliceblue" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "aliceblue" } }' "$WORK" > hued.json
   run "$HUED" unpack hued.json
   [ "$status" -eq 0 ]
   grep -q "^background=#f0f8ff  # aliceblue$" target/.hued
@@ -1112,7 +1112,7 @@ teardown() {
 
 @test "unpack: normalizes a hyphenated, mixed-case name" {
   mkdir -p target
-  printf '{ "%s/target": { "background": "Baby-Blue" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "Baby-Blue" } }' "$WORK" > hued.json
   run "$HUED" unpack hued.json
   [ "$status" -eq 0 ]
   grep -q "^background=#a2cffe  # Baby-Blue$" target/.hued
@@ -1120,7 +1120,7 @@ teardown() {
 
 @test "unpack: leaves hex values untouched" {
   mkdir -p target
-  printf '{ "%s/target": { "background": "#abcdef" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "#abcdef" } }' "$WORK" > hued.json
   run "$HUED" unpack hued.json
   [ "$status" -eq 0 ]
   grep -q "^background=#abcdef$" target/.hued
@@ -1164,11 +1164,11 @@ _ends_with_newline() {
 
 @test "pack: output ends with newline" {
   printf "background=#111111\n" > .hued
-  _ends_with_newline "$HUED" pack "$TMPDIR"
+  _ends_with_newline "$HUED" pack "$WORK"
 }
 
 @test "unpack: output ends with newline" {
   mkdir -p target
-  printf '{ "%s/target": { "background": "#abcdef" } }' "$TMPDIR" > hued.json
+  printf '{ "%s/target": { "background": "#abcdef" } }' "$WORK" > hued.json
   _ends_with_newline "$HUED" unpack hued.json
 }

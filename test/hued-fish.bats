@@ -9,12 +9,12 @@ FG_RESET="${ESC}]110;${BEL}"
 
 setup() {
   command -v fish >/dev/null || skip "fish not installed"
-  TMPDIR="$(mktemp -d)"
-  cd "$TMPDIR"
+  WORK="$(mktemp -d)"
+  cd "$WORK"
 }
 
 teardown() {
-  rm -rf "$TMPDIR"
+  [ -z "${WORK:-}" ] || rm -rf "$WORK"
 }
 
 # Run _hued_apply in a fresh fish process, optionally with env vars.

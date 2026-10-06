@@ -5,12 +5,12 @@
 HUED="$BATS_TEST_DIRNAME/../bin/hued"
 
 setup() {
-  TMPDIR="$(mktemp -d)"
-  cd "$TMPDIR"
+  WORK="$(mktemp -d)"
+  cd "$WORK"
 }
 
 teardown() {
-  rm -rf "$TMPDIR"
+  [ -z "${WORK:-}" ] || rm -rf "$WORK"
 }
 
 # --- bare output vs -a/--all ---
@@ -311,7 +311,7 @@ teardown() {
 # --- unpack only treats color keys as colors ---
 
 @test "unpack: non-color values that look like color names are kept" {
-  printf '{"%s/r": {"background": "leaf", "sfkey": "leaf", "branch-hue": "30deg..90deg"}}' "$TMPDIR" > export.json
+  printf '{"%s/r": {"background": "leaf", "sfkey": "leaf", "branch-hue": "30deg..90deg"}}' "$WORK" > export.json
   run "$HUED" unpack export.json
   [ "$status" -eq 0 ]
   grep -qx "sfkey=leaf" r/.hued

@@ -9,15 +9,15 @@ BG_RESET="${ESC}]111;${BEL}"
 FG_RESET="${ESC}]110;${BEL}"
 
 setup() {
-  TMPDIR="$(mktemp -d)"
-  cd "$TMPDIR"
+  WORK="$(mktemp -d)"
+  cd "$WORK"
   unset HUED_BACKGROUND HUED_FOREGROUND HUED_LOOKUP_PREFER_XKCD
   # shellcheck disable=SC1090
   source "$HUED_SH"
 }
 
 teardown() {
-  rm -rf "$TMPDIR"
+  [ -z "${WORK:-}" ] || rm -rf "$WORK"
 }
 
 # --- .hued file behavior ---

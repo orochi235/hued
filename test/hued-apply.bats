@@ -8,14 +8,14 @@ BG_RESET="${ESC}]111;${BEL}"
 FG_RESET="${ESC}]110;${BEL}"
 
 setup() {
-  TMPDIR="$(mktemp -d)"
-  cd "$TMPDIR"
+  WORK="$(mktemp -d)"
+  cd "$WORK"
   unset HUED_BACKGROUND HUED_FOREGROUND HUED_LOOKUP_PREFER_XKCD
-  OUT="$TMPDIR/tty.out"
+  OUT="$WORK/tty.out"
 }
 
 teardown() {
-  rm -rf "$TMPDIR"
+  [ -z "${WORK:-}" ] || rm -rf "$WORK"
 }
 
 # --- hued apply: emit logic ---
@@ -104,10 +104,10 @@ teardown() {
 
 @test "apply: silent no-op when HUED_TTY target cannot be opened" {
   printf "background=#1a0a0a\n" > .hued
-  HUED_TTY="$TMPDIR/nope/tty.out" run "$HUED" apply
+  HUED_TTY="$WORK/nope/tty.out" run "$HUED" apply
   [ "$status" -eq 0 ]
   [ -z "$output" ]
-  [ ! -e "$TMPDIR/nope/tty.out" ]
+  [ ! -e "$WORK/nope/tty.out" ]
 }
 
 # --- name normalization ---
@@ -230,7 +230,7 @@ teardown() {
 }
 
 @test "unpack: repaints after restoring" {
-  printf '{"%s": {"background": "#1a0a0a"}}' "$TMPDIR" > export.json
+  printf '{"%s": {"background": "#1a0a0a"}}' "$WORK" > export.json
   HUED_TTY="$OUT" run "$HUED" unpack export.json --force
   [ "$status" -eq 0 ]
   run cat "$OUT"
