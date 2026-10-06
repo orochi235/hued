@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-HUED_VERSION="4.0.0"
+HUED_VERSION="4.1.0"
 
 _HUED_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
