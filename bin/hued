@@ -27,7 +27,7 @@ _hued_find() {
 _hued_name_key() {
   local k="$1"
   k="${k// /}"; k="${k//-/}"; k="${k//\'/}"; k="${k//’/}"
-  printf '%s' "${k,,}"
+  printf '%s' "$k" | tr '[:upper:]' '[:lower:]'
 }
 
 # Look up a normalized name key in hued-names.sh, printing #rrggbb or nothing.
@@ -54,7 +54,7 @@ _hued_normalize_color() {
 
   # 6-char hex — normalize to lowercase #rrggbb
   if [[ "$bare" =~ ^[0-9a-fA-F]{6}$ ]]; then
-    printf '#%s' "${bare,,}"
+    printf '#%s' "$bare" | tr '[:upper:]' '[:lower:]'
     return
   fi
 
