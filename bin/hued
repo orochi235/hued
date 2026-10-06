@@ -480,6 +480,8 @@ case "${1:-}" in
       _hued_nearest_name "$hex"
       exit 0
     fi
+    hex=$(_hued_resolve_hex "$raw")
+    [[ -n "$hex" ]] && { printf '#%s\n' "$hex"; exit 0; }
     command -v pastel >/dev/null 2>&1 || {
       echo "hued get: requires 'pastel' (brew install pastel)" >&2
       exit 1
