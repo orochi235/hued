@@ -1,7 +1,8 @@
 """The directories known to hold a .hued, so `hued map` need not walk a tree to find them.
 
 One absolute path per line. `hued set` and `unpack` add to it, `pack` replaces the part under
-the tree it walked, and every read drops directories whose .hued is gone.
+the tree it walked, and every read drops directories whose .hued is gone. The index only answers
+for trees it has walked, which are listed beside it in `roots`.
 """
 from __future__ import annotations
 
@@ -11,31 +12,51 @@ import sys
 from . import files
 
 
-def path() -> str:
+def _cache(name: str) -> str:
     cache = os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache")
-    return os.path.join(cache, "hued", "index")
+    return os.path.join(cache, "hued", name)
+
+
+def path() -> str:
+    return _cache("index")
+
+
+def roots_path() -> str:
+    return _cache("roots")
 
 
 def _under(dirpath: str, root: str) -> bool:
     return dirpath == root or dirpath.startswith(root.rstrip(os.sep) + os.sep)
 
 
-def load() -> list[str] | None:
-    """The indexed directories, or None when there is no index yet."""
+def _read(file: str) -> list[str] | None:
     try:
-        with open(path()) as f:
+        with open(file) as f:
             return [line.rstrip("\n") for line in f if line.strip()]
     except FileNotFoundError:
         return None
 
 
-def save(dirs) -> None:
-    out = path()
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    tmp = f"{out}.{os.getpid()}.tmp"
+def _write(file: str, lines) -> None:
+    os.makedirs(os.path.dirname(file), exist_ok=True)
+    tmp = f"{file}.{os.getpid()}.tmp"
     with open(tmp, "w") as f:
-        f.writelines(d + "\n" for d in sorted(set(dirs)))
-    os.replace(tmp, out)
+        f.writelines(line + "\n" for line in sorted(set(lines)))
+    os.replace(tmp, file)
+
+
+def load() -> list[str] | None:
+    """The indexed directories, or None when there is no index yet."""
+    return _read(path())
+
+
+def save(dirs) -> None:
+    _write(path(), dirs)
+
+
+def walked(root: str) -> bool:
+    """Whether a walk of root, or of a tree holding it, has been recorded."""
+    return any(_under(os.path.realpath(root), r) for r in _read(roots_path()) or [])
 
 
 def add(dirpath: str) -> None:
@@ -50,16 +71,17 @@ def refresh(root: str, found) -> None:
     root = os.path.realpath(root)
     kept = [d for d in load() or [] if not _under(d, root)]
     save(kept + [os.path.realpath(d) for d in found])
+    _write(roots_path(), [r for r in _read(roots_path()) or [] if not _under(r, root)] + [root])
 
 
 def configs(root: str) -> dict[str, dict[str, str]]:
-    """Every .hued under root, read through the index; walks root and seeds it when there is none."""
+    """Every .hued under root, read through the index; walks root and seeds it when it is unwalked."""
     root = os.path.realpath(root)
-    dirs = load()
-    if dirs is None:
+    if not walked(root):
         found = files.scan(root)
         refresh(root, found)
         return {os.path.realpath(d): c for d, c in found.items()}
+    dirs = load() or []
     found, gone = {}, []
     for d in dirs:
         hued = os.path.join(d, ".hued")

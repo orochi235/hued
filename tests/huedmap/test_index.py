@@ -18,7 +18,7 @@ def test_configs_walks_and_seeds_when_there_is_no_index(tmp_path):
 
 def test_configs_reads_the_index_instead_of_walking(tmp_path, monkeypatch):
     a = hued(tmp_path / "a")
-    index.save([a])
+    index.refresh(str(tmp_path), [a])
     hued(tmp_path / "unindexed")
     monkeypatch.setattr(files, "scan", lambda root: (_ for _ in ()).throw(AssertionError("walked")))
     assert list(index.configs(str(tmp_path))) == [a]
@@ -27,9 +27,23 @@ def test_configs_reads_the_index_instead_of_walking(tmp_path, monkeypatch):
 def test_configs_keeps_to_root_and_drops_directories_whose_hued_is_gone(tmp_path):
     inside, outside, gone = hued(tmp_path / "in" / "a"), hued(tmp_path / "out"), hued(tmp_path / "in" / "b")
     index.save([inside, outside, gone])
+    index.refresh(str(tmp_path / "in"), [inside, gone])
     os.remove(os.path.join(gone, ".hued"))
     assert list(index.configs(str(tmp_path / "in"))) == [inside]
     assert index.load() == sorted([inside, outside])
+
+
+def test_configs_walks_a_root_that_add_alone_put_in_the_index(tmp_path):
+    a, b = hued(tmp_path / "tree" / "a"), hued(tmp_path / "tree" / "b")
+    index.add(a)
+    assert list(index.configs(str(tmp_path / "tree"))) == [a, b]
+
+
+def test_configs_walks_a_root_outside_every_walked_tree(tmp_path):
+    a, b = hued(tmp_path / "one" / "a"), hued(tmp_path / "two" / "b")
+    index.configs(str(tmp_path / "one"))
+    assert list(index.configs(str(tmp_path / "two"))) == [b]
+    assert list(index.configs(str(tmp_path / "one" / "a"))) == [a]
 
 
 def test_add_records_a_directory_once(tmp_path):
