@@ -226,10 +226,10 @@
     renderSymbols();
     draw();
     if (!view) return;
-    const c = view.colors, hex = key => c[key] && c[key].hex, term = $('term'), name = symbol();
-    if (hex('background')) term.style.setProperty('--c', hex('background'));
-    else term.style.removeProperty('--c');
-    term.style.setProperty('--f', view.text);
+    const c = view.colors, hex = key => c[key] && c[key].hex, term = $('term'), look = $('look'), name = symbol();
+    if (hex('background')) look.style.setProperty('--c', hex('background'));
+    else look.style.removeProperty('--c');
+    look.style.setProperty('--f', view.text);
     term.replaceChildren();
     // Only the command is selectable, so copying the pane copies something to paste.
     const who = el('span', 'deco');
@@ -240,6 +240,11 @@
     term.append(tint(who, hex('accent')), branch,
       tint(el('span', 'deco', '$ '), hex('accent3')),
       view.command ? el('span', '', view.command) : el('span', 'deco', '# nothing changed yet'));
+    $('spec').querySelectorAll('[data-slot]').forEach(e => {
+      const h = hex(e.dataset.slot);
+      e.classList.toggle('unset', !h);
+      if (h) e.style.setProperty('--s', h); else e.style.removeProperty('--s');
+    });
     $('near').replaceChildren(...view.neighbors.map(n => {
       const row = el('div', 'row'), dot = el('span', 'chipdot');
       dot.style.setProperty('--c', n.hex);

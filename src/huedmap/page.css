@@ -63,6 +63,22 @@ canvas { width: 100%; display: block; border-radius: 8px; cursor: crosshair; bac
          background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
 .term { background: var(--c, var(--canvas)); color: var(--f, #eeeeee); border-radius: 8px; padding: 14px;
         min-height: 132px; font: 13px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.spec { margin-top: 10px; padding: 14px; border-radius: 8px; background: var(--c, var(--canvas));
+        color: var(--f, #eeeeee); font-size: 13px; }
+.spec p { margin: 8px 0 12px; }
+.spec .unset { --s: currentColor; opacity: 0.35; }
+.spec-head { display: flex; align-items: center; gap: 8px; }
+.spec-link { color: var(--s); text-decoration: underline; text-underline-offset: 2px; }
+.spec-row { display: flex; align-items: center; gap: 10px; }
+.spec-fill, .spec-ghost, .spec-tag { border-radius: 6px; font: 12px var(--mono); }
+.spec-fill { padding: 5px 12px; background: var(--s); color: var(--c, var(--canvas)); }
+.spec-ghost { padding: 4px 11px; border: 1px solid var(--s); color: var(--s); }
+.spec-tag { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--s); color: var(--s); }
+.spec .unset.spec-fill { background: none; border: 1px dashed; padding: 4px 11px; color: inherit; }
+.spec .unset.spec-ghost, .spec .unset.spec-tag { border-style: dashed; }
+.spec-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--s); }
+.spec-bar { display: flex; gap: 3px; height: 6px; margin-top: 12px; }
+.spec-bar span { flex: 1; border-radius: 3px; background: var(--s); }
 .glyph { display: inline-block; width: 18px; height: 18px; flex: none; background: currentColor; vertical-align: -3px;
          -webkit-mask: var(--g) center / contain no-repeat; mask: var(--g) center / contain no-repeat; }
 .glyph.none { visibility: hidden; }

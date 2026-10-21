@@ -40,7 +40,22 @@
   <div class="panel">
     <div>
       <div class="label">Preview</div>
+      <div id="look">
       <div class="term" id="term"></div>
+      <div class="spec" id="spec" aria-hidden="true">
+        <div class="spec-head"><b>Release notes</b><span class="spec-tag" data-slot="accent3">accent3</span></div>
+        <p>Body text sits in the foreground color, with
+          <span class="spec-link" data-slot="accent">a link in the first accent</span> partway through.</p>
+        <div class="spec-row">
+          <span class="spec-fill" data-slot="accent">accent</span>
+          <span class="spec-ghost" data-slot="accent2">accent2</span>
+          <span class="spec-dot" data-slot="accent3"></span>
+        </div>
+        <div class="spec-bar">
+          <span data-slot="accent"></span><span data-slot="accent2"></span><span data-slot="accent3"></span>
+        </div>
+      </div>
+      </div>
       <div class="actions">
         <button class="use" id="use" type="button" disabled>Use these</button>
         <button class="link" id="copy" type="button" disabled>copy command</button>
