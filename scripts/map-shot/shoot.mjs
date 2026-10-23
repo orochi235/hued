@@ -60,7 +60,7 @@ async function main() {
 
   say('starting hued map');
   const map = spawn(join(repo, 'bin', 'hued'), ['map', '--no-open'],
-    { cwd: target, env: { ...process.env, HUED_TTY: '/dev/null' } });
+    { cwd: target, env: { ...process.env, HUED_TTY: '/dev/null', XDG_CACHE_HOME: join(work, 'cache') } });
   children.push(map);
   map.stdout.setEncoding('utf8');
   let mapLog = '';
