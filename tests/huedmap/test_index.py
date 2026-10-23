@@ -20,7 +20,7 @@ def test_configs_reads_the_index_instead_of_walking(tmp_path, monkeypatch):
     a = hued(tmp_path / "a")
     index.refresh(str(tmp_path), [a])
     hued(tmp_path / "unindexed")
-    monkeypatch.setattr(files, "scan", lambda root: (_ for _ in ()).throw(AssertionError("walked")))
+    monkeypatch.setattr(files, "scan", lambda *_: (_ for _ in ()).throw(AssertionError("walked")))
     assert list(index.configs(str(tmp_path))) == [a]
 
 
@@ -79,3 +79,10 @@ def test_unpack_indexes_what_it_writes(tmp_path):
     (tmp_path / "in.json").write_text('{"%s": {"background": "#abcdef"}}' % target)
     files.unpack(str(tmp_path / "in.json"), force=False)
     assert index.load() == [str(target.resolve())]
+
+
+def test_walk_reports_each_hued_as_it_is_found_and_records_the_walk(tmp_path):
+    a = hued(tmp_path / "a")
+    heard = []
+    assert index.walk(str(tmp_path), lambda d, c: heard.append(d)) == {a: {"background": "#123456"}}
+    assert heard == [a] and index.load() == [a] and index.walked(str(tmp_path))

@@ -16,7 +16,7 @@ import sys
 import threading
 import webbrowser
 
-from . import server, symbols
+from . import index, server, symbols
 
 
 def _cancel(*_):
@@ -42,15 +42,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{prog}: {root} is not a directory", file=sys.stderr)
         return 1
 
+    def found(count):
+        print(f"Found {count} backgrounds in use under {root}.", file=log, flush=True)
+
     repos = []
-    if root:
-        print(f"Scanning {root} ...", file=log, flush=True)
+    walk = bool(root) and not index.walked(root)
+    if walk:
+        print(f"Scanning {root} in the background; the page fills in as it goes.", file=log, flush=True)
+    elif root:
         repos = server.load_repos(root, target, args.xkcd)
-        print(f"Found {len(repos)} backgrounds in use.", file=log, flush=True)
+        found(len(repos))
 
     glyphs = symbols.Glyphs() if symbols.Glyphs.available() else None
     app = server.App(repos, root, target, os.path.abspath(args.hued), secrets.token_urlsafe(16),
                      index=symbols.Index.load() if glyphs else None, glyphs=glyphs, xkcd=args.xkcd)
+    if walk:
+        app.scan(found)
     httpd = server.make_server(app)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     address = server.url(httpd, app.token)

@@ -34,10 +34,21 @@ _start() {
   return 1
 }
 
+# A first walk of a tree runs behind the page; wait for the line it prints when done.
+_found() {
+  local file="${2:-$WORK/out}"
+  for _ in $(seq 1 100); do
+    grep -q "Found $1 backgrounds in use" "$file" && return 0
+    sleep 0.1
+  done
+  cat "$file" >&2
+  return 1
+}
+
 @test "map: scans the parent directory by default and prints a loopback URL" {
   _start
   grep -q "Scanning $WORK " "$WORK/out"
-  grep -q "Found 1 backgrounds in use" "$WORK/out"
+  _found 1
   [[ "$URL" == http://127.0.0.1:*"/?t="* ]]
 }
 
@@ -76,7 +87,7 @@ _start() {
   printf 'background=#111111\n' > "$WORK/elsewhere/a/.hued"
   printf 'background=#222222\n' > "$WORK/elsewhere/b/.hued"
   _start "$WORK/elsewhere"
-  grep -q "Found 2 backgrounds in use" "$WORK/out"
+  _found 2
 }
 
 @test "map: a directory that does not exist is an error" {
@@ -128,7 +139,7 @@ _start_pick() {
 
 @test "pick: scans a directory only when given one" {
   _start_pick "$WORK"
-  grep -q "Found 1 backgrounds in use" "$WORK/err"
+  _found 1 "$WORK/err"
 }
 
 @test "-i: opens the map" {
@@ -142,14 +153,14 @@ _start_pick() {
 }
 
 @test "map: reads the index once seeded; hued set adds to it and pack catches the rest" {
-  _start; kill "$MAP_PID"; wait "$MAP_PID" 2>/dev/null || true; MAP_PID=""
+  _start; _found 1; kill "$MAP_PID"; wait "$MAP_PID" 2>/dev/null || true; MAP_PID=""
   grep -qx "$WORK/taken" "$XDG_CACHE_HOME/hued/index"
   mkdir "$WORK/by-hand" "$WORK/by-set"
   printf 'background=#00ff00\n' > "$WORK/by-hand/.hued"
   (cd "$WORK/by-set" && "$HUED" set bg '#0000ff' >/dev/null)
   _start; kill "$MAP_PID"; wait "$MAP_PID" 2>/dev/null || true; MAP_PID=""
-  grep -q "Found 2 backgrounds in use" "$WORK/out"
+  _found 2
   "$HUED" pack "$WORK" >/dev/null
   _start
-  grep -q "Found 3 backgrounds in use" "$WORK/out"
+  _found 3
 }

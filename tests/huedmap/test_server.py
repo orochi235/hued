@@ -60,6 +60,26 @@ def test_load_repos_leaves_out_the_directory_being_colored(tree):
     assert "new" not in names
 
 
+def test_scan_fills_in_the_map_in_the_background(tree):
+    target = str(tree / "new")
+    app = server.App([], str(tree), target, HUED, TOKEN)
+    app.scan().join(5)
+    data = get_json(app, f"/data?t={TOKEN}")
+    assert not data["scanning"]
+    assert [r["name"] for r in data["repos"]] == [r["name"] for r in server.load_repos(str(tree), target)]
+
+
+def test_data_says_when_the_walk_is_still_going(tree, monkeypatch):
+    release = threading.Event()
+    monkeypatch.setattr(server.index, "walk", lambda root, on_found: release.wait(5))
+    app = server.App([], str(tree), None, HUED, TOKEN)
+    thread = app.scan()
+    assert get_json(app, f"/data?t={TOKEN}")["scanning"]
+    release.set()
+    thread.join(5)
+    assert not get_json(app, f"/data?t={TOKEN}")["scanning"]
+
+
 def test_writes_adds_dark_text_only_on_a_light_background():
     assert server.writes({"background": "#320053"}) == [("background", "#320053")]
     assert server.writes({"background": "#ffffc4", "sfkey": "leaf"}) == [

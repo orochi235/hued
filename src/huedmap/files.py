@@ -31,7 +31,8 @@ def read(path) -> dict[str, str]:
     return config
 
 
-def scan(root) -> dict[str, dict[str, str]]:
+def scan(root, on_found=None) -> dict[str, dict[str, str]]:
+    """Every .hued under root; on_found(dir, config) hears of each one as the walk reaches it."""
     found = {}
     for dirpath, dirs, names in os.walk(str(root)):
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
@@ -39,6 +40,8 @@ def scan(root) -> dict[str, dict[str, str]]:
             config = read(os.path.join(dirpath, ".hued"))
             if config:
                 found[dirpath] = config
+                if on_found:
+                    on_found(dirpath, config)
     return found
 
 

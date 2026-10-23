@@ -81,19 +81,25 @@ def command(lines: list[tuple[str, str]]) -> str:
     return " ".join(["hued", "set"] + [shlex.quote(f"{key}={value}") for key, value in lines])
 
 
+def repo(path: str, config: dict, root: str, target: str | None, xkcd: bool = False) -> dict | None:
+    """The map's dot for one .hued, or None when it sets no background or is the one being colored."""
+    if target and os.path.realpath(path) == os.path.realpath(target):
+        return None
+    hexv, _ = files.normalize(config.get("background", ""), xkcd)
+    if not HEX.fullmatch(hexv):
+        return None
+    return dict(color.place(hexv), name=os.path.relpath(path, root), sfkey=config.get("sfkey", ""))
+
+
+def by_name(repos: list[dict]) -> list[dict]:
+    return sorted(repos, key=lambda r: r["name"])
+
+
 def load_repos(root: str, target: str | None, xkcd: bool = False) -> list[dict]:
     """Every background in use under root, except the one in the directory being colored."""
-    repos = []
     root = os.path.realpath(root)
-    for path, config in index.configs(root).items():
-        if target and os.path.realpath(path) == os.path.realpath(target):
-            continue
-        hexv, _ = files.normalize(config.get("background", ""), xkcd)
-        if not HEX.fullmatch(hexv):
-            continue
-        repos.append(dict(color.place(hexv),
-                          name=os.path.relpath(path, root), sfkey=config.get("sfkey", "")))
-    return sorted(repos, key=lambda r: r["name"])
+    found = (repo(path, config, root, target, xkcd) for path, config in index.configs(root).items())
+    return by_name(r for r in found if r)
 
 
 class App:
@@ -109,11 +115,37 @@ class App:
         self.glyphs = glyphs
         self.env = env
         self.xkcd = xkcd
+        self.scanning = False
         self.done = threading.Event()
         self.written: list[str] = []
         self.last_request = time.monotonic()
         self.leaving: float | None = None
         self._static: dict[str, bytes] = {}
+
+    def scan(self, on_done=None) -> threading.Thread:
+        """Walk root in the background, adding each background to the map as the walk finds it,
+        then call on_done with how many it found. A walk cut short by the server stopping is not
+        recorded, so the next one starts over."""
+        root = os.path.realpath(self.root)
+
+        def found(path, config):
+            r = repo(path, config, root, self.target, self.xkcd)
+            if r:
+                # Replaced, never appended to, so a request reading it mid-walk sees one whole list.
+                self.repos = by_name(self.repos + [r])
+
+        def run():
+            try:
+                index.walk(root, found)
+                if on_done:
+                    on_done(len(self.repos))
+            finally:
+                self.scanning = False
+
+        self.scanning = True
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
+        return thread
 
     # --- what the page asks for ---
 
@@ -125,14 +157,16 @@ class App:
         return files.read(own) if own and os.path.exists(own) else {}
 
     def data(self) -> dict:
-        taken = [r["hex"] for r in self.repos]
+        scanning, repos = self.scanning, self.repos
+        taken = [r["hex"] for r in repos]
         return {
             "root": self.root,
             "target": self.target,
             "name": os.path.basename(self.target) if self.target else None,
             "current": self.current(),
             "slots": list(SLOTS),
-            "repos": self.repos,
+            "repos": repos,
+            "scanning": scanning,
             "gaps": {band: [self.swatch(h, f"gap {i + 1}")
                             for i, h in enumerate(color.gaps(taken, band))]
                      for band in color.BANDS},

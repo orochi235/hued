@@ -74,13 +74,19 @@ def refresh(root: str, found) -> None:
     _write(roots_path(), [r for r in _read(roots_path()) or [] if not _under(r, root)] + [root])
 
 
+def walk(root: str, on_found=None) -> dict[str, dict[str, str]]:
+    """Walk root for every .hued and record the walk; on_found hears of each one as it turns up."""
+    root = os.path.realpath(root)
+    found = files.scan(root, on_found)
+    refresh(root, found)
+    return {os.path.realpath(d): c for d, c in found.items()}
+
+
 def configs(root: str) -> dict[str, dict[str, str]]:
     """Every .hued under root, read through the index; walks root and seeds it when it is unwalked."""
     root = os.path.realpath(root)
     if not walked(root):
-        found = files.scan(root)
-        refresh(root, found)
-        return {os.path.realpath(d): c for d, c in found.items()}
+        return walk(root)
     dirs = load() or []
     found, gone = {}, []
     for d in dirs:

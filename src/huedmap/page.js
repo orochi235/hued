@@ -360,12 +360,36 @@
     if (!state.finished) navigator.sendBeacon(api('/bye'));
   });
 
+  function take(data) {
+    state.data = data;
+    data.repos.forEach(r => { if (r.sfkey && !takenBy[r.sfkey]) takenBy[r.sfkey] = r.name; });
+    const how = 'Choose what you are picking below, then a swatch, or click the map.';
+    const n = data.repos.length;
+    $('sub').textContent = !data.root ? how
+      : data.scanning
+        ? 'Scanning ' + data.root + '\u2026 ' + n + ' background' + (n === 1 ? '' : 's') + ' found so far. ' + how
+        : n
+          ? 'Dots are the backgrounds in use under ' + data.root + '. Dashed rings are the widest gaps. ' + how
+          : 'No .hued backgrounds found under ' + data.root + ', so every color is free. ' + how;
+    wantGlyphs(data.repos.map(r => r.sfkey));
+    if (data.scanning) setTimeout(poll, 1000);
+  }
+
+  function poll() {
+    if (state.finished) return;
+    getJSON('/data').then(data => {
+      const grew = data.repos.length !== state.data.repos.length;
+      take(data);
+      render();
+      if (grew) refresh();
+    }).catch(() => {});
+  }
+
   Promise.all([getJSON('/data'), image(api('/field.png')), image(api('/grays.png'))])
     .then(([data, field, grays]) => {
-      state.data = data;
       images.field = field;
       images.grays = grays;
-      data.repos.forEach(r => { if (r.sfkey && !takenBy[r.sfkey]) takenBy[r.sfkey] = r.name; });
+      take(data);
       if (data.target) {
         document.title = 'hued map — ' + data.name;
         $('target').textContent = data.name;
@@ -374,18 +398,13 @@
         $('title').textContent = 'Pick colors';
         $('use').textContent = 'Print these';
       }
-      const how = 'Choose what you are picking below, then a swatch, or click the map.';
-      $('sub').textContent = !data.root ? how
-        : data.repos.length
-          ? 'Dots are the backgrounds in use under ' + data.root + '. Dashed rings are the widest gaps. ' + how
-          : 'No .hued backgrounds found under ' + data.root + ', so every color is free. ' + how;
       if (data.current.sfkey) $('sym').value = data.current.sfkey;
       if (data.current.slug) $('slug').value = data.current.slug;
       if (data.name) $('slug').placeholder = data.name;
       if (!data.symbols.search) $('sym').placeholder = 'SF Symbol name, e.g. leaf';
       render();
       refresh();
-      wantGlyphs(data.repos.map(r => r.sfkey).concat(data.current.sfkey || []));
+      wantGlyphs([data.current.sfkey]);
     })
     .catch(err => { $('sub').textContent = 'Could not load: ' + String(err.message || err); });
 })();
