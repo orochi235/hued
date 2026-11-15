@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from huedmap import files
 
 
@@ -66,6 +68,33 @@ def test_unpack_skips_existing_without_force(tmp_path):
     assert "#000000" in (tmp_path / "r" / ".hued").read_text()
     files.unpack(export, force=True)
     assert "#ffffff" in (tmp_path / "r" / ".hued").read_text()
+
+
+def test_unpack_checks_the_whole_manifest_before_writing(tmp_path):
+    export = tmp_path / "export.json"
+    good, bad = tmp_path / "good", tmp_path / "bad"
+    export.write_text(json.dumps({
+        str(good): {"background": "#ffffff"},
+        str(bad): {"background": "#000000\nforeground=#ff0000"},
+    }))
+    with pytest.raises(ValueError, match="single-line"):
+        files.unpack(export, force=False)
+    assert not (good / ".hued").exists()
+
+
+def test_unpack_rejects_a_key_that_is_not_a_word(tmp_path):
+    export = tmp_path / "export.json"
+    export.write_text(json.dumps({str(tmp_path / "r"): {"a=b": "x"}}))
+    with pytest.raises(ValueError, match="not a valid key"):
+        files.unpack(export, force=False)
+
+
+def test_unpack_force_leaves_no_temp_file(tmp_path):
+    _write(tmp_path / "r" / ".hued", "background=#000000\n")
+    export = tmp_path / "export.json"
+    export.write_text(json.dumps({str(tmp_path / "r"): {"background": "#ffffff"}}))
+    files.unpack(export, force=True)
+    assert sorted(p.name for p in (tmp_path / "r").iterdir()) == [".hued"]
 
 
 def test_read_takes_a_key_s_last_line(tmp_path):

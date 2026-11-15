@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 
 from . import index
 from .names import NAMED_COLORS, XKCD_OVERRIDES
@@ -67,23 +68,72 @@ def normalize(value: str, xkcd: bool = False) -> tuple[str, str | None]:
     return v, None
 
 
+KEY = re.compile(r"[A-Za-z0-9_]+")
+
+
+def problems(data) -> list[str]:
+    """Why a pack manifest can't be unpacked; empty when it can."""
+    if not isinstance(data, dict):
+        return ["the manifest is not a JSON object of directory -> settings"]
+    out = []
+    for dirpath, config in data.items():
+        if not dirpath:
+            out.append("an entry has an empty directory")
+            continue
+        if not isinstance(config, dict):
+            out.append(f"{dirpath}: settings are not an object")
+            continue
+        for key, value in config.items():
+            if not KEY.fullmatch(key):
+                out.append(f"{dirpath}: {key!r} is not a valid key")
+            elif not isinstance(value, str) or "\n" in value or "\r" in value:
+                out.append(f"{dirpath}: {key} must be a single-line string")
+    return out
+
+
+def render(config: dict[str, str], xkcd: bool) -> str:
+    lines = [HEADER]
+    for key, value in config.items():
+        if key not in COLOR_KEYS:
+            lines.append(f"{key}={value}\n")
+            continue
+        hexv, name = normalize(value, xkcd)
+        lines.append(f"{key}={hexv}  # {name}\n" if name else f"{key}={hexv}\n")
+    return "".join(lines)
+
+
+def _replace(path: str, text: str) -> None:
+    fd, tmp = tempfile.mkstemp(prefix=".hued.", dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
+
+
 def unpack(path, force: bool, xkcd: bool = False) -> None:
+    """Writes every entry of a pack manifest, after checking the whole manifest first."""
     with open(path) as f:
         data = json.load(f)
+    bad = problems(data)
+    if bad:
+        raise ValueError("nothing unpacked:\n  " + "\n  ".join(bad))
     for dirpath, config in data.items():
         hued_path = os.path.join(dirpath, ".hued")
-        if os.path.exists(hued_path) and not force:
-            print(f"Skipping {hued_path} (already exists, use --force to overwrite)", file=sys.stderr)
-            continue
+        text = render(config, xkcd)
         os.makedirs(dirpath, exist_ok=True)
-        with open(hued_path, "w") as f:
-            f.write(HEADER)
-            for key, value in config.items():
-                if key not in COLOR_KEYS:
-                    f.write(f"{key}={value}\n")
-                    continue
-                hexv, name = normalize(value, xkcd)
-                f.write(f"{key}={hexv}  # {name}\n" if name else f"{key}={hexv}\n")
+        if force:
+            _replace(hued_path, text)
+        else:
+            try:
+                with open(hued_path, "x") as f:
+                    f.write(text)
+            except FileExistsError:
+                print(f"Skipping {hued_path} (already exists, use --force to overwrite)", file=sys.stderr)
+                continue
         index.add(dirpath)
         print(f"Wrote {hued_path}")
 
@@ -97,7 +147,11 @@ def main(argv: list[str]) -> int:
         print(json.dumps(found, indent=2))
         return 0
     if len(args) == 3 and args[0] == "unpack":
-        unpack(args[1], force=args[2] == "1", xkcd=xkcd)
+        try:
+            unpack(args[1], force=args[2] == "1", xkcd=xkcd)
+        except ValueError as e:
+            print(f"hued unpack: {e}", file=sys.stderr)
+            return 1
         return 0
     print("usage: python3 -m huedmap.files pack <dir> | unpack <file> <0|1> [--xkcd]", file=sys.stderr)
     return 2
