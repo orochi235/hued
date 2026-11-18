@@ -92,8 +92,7 @@ file holds.
 ### Homebrew (recommended)
 
 ```zsh
-brew tap orochi235/hued
-brew install hued
+brew install orochi235/tap/hued
 ```
 
 Then add to your shell config:

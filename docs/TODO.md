@@ -7,7 +7,7 @@
   (write, skip, overwrite) and a way to map the manifest's root onto a local one. (filed
   2026-11-15 from automated review)
 - **Smoke-test the installed layout, not the checkout.** The bats and pytest suites run from
-  the source tree, so they can't catch the Homebrew formula (`orochi235/homebrew-hued`,
+  the source tree, so they can't catch the Homebrew formula (`Formula/hued.rb` in `orochi235/homebrew-tap`,
   which lists every installed file by hand) missing a new script or package. A clean-prefix
   smoke would lay out `bin/`, `share/`, and `libexec/hued/` the way the formula does, then
   source the bash, zsh, and fish hooks, run `hued-py huedmap` imports, and resolve a named

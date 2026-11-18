@@ -24,7 +24,7 @@ To look at the page without opening a browser, run
 `node scripts/map-shot/shoot.mjs`: it drives the page in headless Chrome and
 writes a screenshot of each state to `out/map-shot/`, emptied on every run.
 
-Distribution: Homebrew tap (`orochi235/hued`) plus manual install. Must stay
+Distribution: the `hued` formula in the `orochi235/tap` Homebrew tap (`~/src/homebrew-tap`) plus manual install. Must stay
 **platform-agnostic**.
 
 The formula names each file it installs. A new script in `bin/` or package in
