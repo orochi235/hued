@@ -182,6 +182,17 @@ class App:
         return {"swatches": [self.swatch(s["hex"], s["tag"])
                              for s in color.near(hue, lightness, gray)]}
 
+    def tune(self, query: dict) -> dict:
+        try:
+            l, hue, fraction = (float(query[k]) for k in ("l", "h", "s"))
+        except (KeyError, ValueError):
+            raise ValueError("l, h and s must be numbers") from None
+        if not all(map(math.isfinite, (l, hue, fraction))):
+            raise ValueError("l, h and s must be numbers")
+        l, hue, fraction = min(1.0, max(0.0, l)), hue % 360, min(1.0, max(0.0, fraction))
+        return {"color": color.place(color.from_lch(l, hue, fraction)),
+                "tracks": color.tracks_for(l, hue, fraction)}
+
     def preview(self, query: dict) -> dict:
         """What the page shows for a pick: the lines it writes, each slot's color as the
         terminal will show it, and how each one reads against the background."""
@@ -274,6 +285,8 @@ class App:
                 return self._json(self.data())
             if route == ("GET", "/near"):
                 return self._json(self.near(query))
+            if route == ("GET", "/tune"):
+                return self._json(self.tune(query))
             if route == ("GET", "/preview"):
                 return self._json(self.preview(query))
             if route == ("GET", "/symbols"):

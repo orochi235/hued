@@ -210,6 +210,43 @@
     if (now) $('custom').value = now.hex;
     if (document.activeElement !== $('hex')) $('hex').value = now ? now.hex : '';
     $('revert').disabled = !(state.slot in state.picks);
+    syncKnobs(now);
+  }
+
+  // The sliders hold their own lightness, saturation and hue, so a drag through gray or the
+  // gamut's edge keeps them where the hand left them; they read from a color only when it
+  // arrived some other way.
+  const knobs = ['l', 's', 'h'].map(axis => $('tune-' + axis));
+  let synced = null, tuning = 0;
+  function knobValues() {
+    return Object.fromEntries(knobs.map(k => [k.dataset.axis, k.value]));
+  }
+  function showKnobs(tracks) {
+    knobs.forEach(k => {
+      const a = k.dataset.axis, v = Number(k.value);
+      $(k.id + '-out').textContent = a === 'h' ? Math.round(v) + '\u00b0' : Math.round(v * 100) + '%';
+      if (tracks) k.style.setProperty('--track', 'linear-gradient(to right, ' + tracks[a].join(', ') + ')');
+    });
+  }
+  function tune(pick) {
+    const ask = ++tuning;
+    showKnobs();
+    getJSON('/tune', knobValues()).then(got => {
+      if (ask !== tuning) return;
+      showKnobs(got.tracks);
+      if (!pick) return;
+      synced = got.color.hex;
+      choose(got.color.hex);
+    }).catch(err => { $('note').textContent = String(err.message || err); });
+  }
+  function syncKnobs(c) {
+    knobs.forEach(k => { k.disabled = !c; });
+    if (!c || c.hex === synced) return;
+    synced = c.hex;
+    $('tune-l').value = c.l;
+    $('tune-s').value = c.s;
+    if (!c.gray) $('tune-h').value = c.h;
+    tune(false);
   }
 
   function tint(e, hex) {
@@ -308,6 +345,7 @@
     if (/^#[0-9a-f]{6}$/.test(v)) choose(v);
   });
   $('hex').addEventListener('blur', render);
+  knobs.forEach(k => k.addEventListener('input', () => tune(true)));
   $('revert').addEventListener('click', () => {
     delete state.picks[state.slot];
     refresh();

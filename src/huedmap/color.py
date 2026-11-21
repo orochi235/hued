@@ -85,6 +85,7 @@ MIN_GAP_CHROMA = 0.05
 LIGHT = 0.6
 FIELD_CHROMA = 0.9
 GRID_STEP = 15
+TRACK_STOPS = 13
 
 
 def lab(hexv: str) -> Lab:
@@ -108,10 +109,13 @@ def contrast(a: str, b: str) -> float:
 def place(hexv: str) -> dict:
     l, a, b = lab(hexv)
     chroma = math.hypot(a, b)
+    hue = math.degrees(math.atan2(b, a)) % 360
+    top = _max_chroma(l, hue)
     return {
         "hex": hexv,
-        "h": math.degrees(math.atan2(b, a)) % 360,
+        "h": hue,
         "l": l,
+        "s": min(1.0, chroma / top) if top > 1e-4 else 0.0,
         "gray": chroma < GRAY_CHROMA,
         "light": l > LIGHT,
     }
@@ -142,6 +146,16 @@ def _rgb_from_lch(l: float, hue: float, fraction: float) -> RGB:
 def from_lch(l: float, hue: float, fraction: float) -> str:
     """The color at this lightness and hue, at a fraction of the most chroma sRGB can show there."""
     return rgb_to_hex(_rgb_from_lch(l, hue, fraction))
+
+
+def tracks_for(l: float, hue: float, fraction: float) -> dict[str, list[str]]:
+    """What each slider passes through when the other two hold still."""
+    steps = [i / (TRACK_STOPS - 1) for i in range(TRACK_STOPS)]
+    return {
+        "l": [from_lch(t, hue, fraction) for t in steps],
+        "s": [from_lch(l, hue, t) for t in steps],
+        "h": [from_lch(l, 360 * t, fraction) for t in steps],
+    }
 
 
 _grid: list[tuple[str, Lab]] | None = None

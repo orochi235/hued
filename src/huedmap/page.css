@@ -26,6 +26,16 @@ canvas { width: 100%; display: block; border-radius: 8px; cursor: crosshair; bac
            font: 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--dim); }
 
 .slots { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 20px; }
+.tune { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: -8px 0 20px; }
+.knob { display: grid; grid-template-columns: auto 1fr 5ch; gap: 10px; align-items: center; }
+.knob .label { margin: 0; min-width: 10ch; }
+.knob output { text-align: end; font: 12px var(--mono); font-variant-numeric: tabular-nums; color: var(--dim); }
+.knob input { -webkit-appearance: none; appearance: none; width: 100%; height: 14px; margin: 0;
+              border-radius: 7px; border: 1px solid var(--border); background: var(--track, var(--border)); }
+.knob input:disabled { opacity: 0.35; }
+.knob input::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 20px; border-radius: 4px;
+              background: #fff; border: 2px solid #000a; cursor: pointer; }
+.knob input::-moz-range-thumb { width: 12px; height: 16px; border-radius: 4px; background: #fff; border: 2px solid #000a; }
 .tint { color: var(--t); }
 .deco { user-select: none; -webkit-user-select: none; }
 .actions { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
@@ -101,7 +111,7 @@ canvas { width: 100%; display: block; border-radius: 8px; cursor: crosshair; bac
 .done pre { font: 13px/1.6 var(--mono); }
 
 @media (max-width: 800px) {
-  .cols, .panel { grid-template-columns: 1fr; }
+  .cols, .panel, .tune { grid-template-columns: 1fr; }
   .readout { min-width: 0; flex-basis: 100%; text-align: start; margin-inline-start: 0; }
   .custom { margin-inline-start: 0; }
 }

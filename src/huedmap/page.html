@@ -31,6 +31,18 @@
     </span>
   </div>
 
+  <div class="tune" id="tune" aria-label="Adjust the color being picked">
+    <label class="knob"><span class="label">Lightness</span>
+      <input type="range" id="tune-l" data-axis="l" min="0" max="1" step="0.005">
+      <output id="tune-l-out"></output></label>
+    <label class="knob"><span class="label">Saturation</span>
+      <input type="range" id="tune-s" data-axis="s" min="0" max="1" step="0.005">
+      <output id="tune-s-out"></output></label>
+    <label class="knob"><span class="label">Hue</span>
+      <input type="range" id="tune-h" data-axis="h" min="0" max="360" step="1">
+      <output id="tune-h-out"></output></label>
+  </div>
+
   <div class="cols">
     <div><div class="label">Widest gaps</div><div class="tray" id="gaps"></div></div>
     <div><div class="label">From your click</div>

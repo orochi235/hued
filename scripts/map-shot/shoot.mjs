@@ -16,7 +16,7 @@ const repo = resolve(here, '..', '..');
 const out = resolve(process.argv[2] || join(repo, 'out', 'map-shot'));
 const chromePath = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const WIDTH = 1200, HEIGHT = 1500;
-const STEPS = 8;
+const STEPS = 9;
 let step = 0;
 const say = what => console.log(`${++step}/${STEPS} ${what}`);
 const sleep = ms => new Promise(done => setTimeout(done, ms));
@@ -172,11 +172,28 @@ async function main() {
   await sleep(600);
   await shoot('5-slot.png');
 
+  say('background desaturated with the slider');
+  const before = await evaluate(`document.getElementById('hex').value`);
+  await evaluate(`(() => {
+    const k = document.getElementById('tune-s');
+    k.value = 0.25;
+    k.dispatchEvent(new Event('input'));
+  })()`);
+  await sleep(800);
+  const after = await evaluate(`({ hex: document.getElementById('hex').value,
+    shown: document.getElementById('tune-s-out').textContent,
+    track: getComputedStyle(document.getElementById('tune-s')).getPropertyValue('--track') })`);
+  if (after.hex === before || after.shown !== '25%' || !after.track.includes('gradient')) {
+    problems.push(`saturation slider: ${before} -> ${JSON.stringify(after)}`);
+  }
+  console.log(`saturation slider: ${before} -> ${after.hex}`);
+  await shoot('6-tuned.png');
+
   say('used it');
   const [ux, uy] = await center('#use');
   await click(ux, uy);
   await sleep(1000);
-  await shoot('6-written.png');
+  await shoot('7-written.png');
   const code = await Promise.race([exited, sleep(5000).then(() => 'still running')]);
 
   socket.close();

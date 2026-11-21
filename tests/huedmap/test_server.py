@@ -314,3 +314,15 @@ def test_over_a_real_socket(app, tree):
 def test_command_quotes_what_a_shell_would_glob():
     assert server.command([("background", "#0000ff"), ("sfkey", "leaf")]) == \
         "hued set 'background=#0000ff' sfkey=leaf"
+
+
+def test_tune_returns_the_color_at_a_lightness_hue_and_saturation(app):
+    got = get_json(app, f"/tune?t={TOKEN}&l=0.5&h=260&s=0.4")
+    assert got["color"]["l"] == pytest.approx(0.5, abs=0.02)
+    assert got["color"]["s"] == pytest.approx(0.4, abs=0.04)
+    assert set(got["tracks"]) == {"l", "s", "h"}
+
+
+@pytest.mark.parametrize("query", ["l=x&h=0&s=0", "l=0.5&h=nan&s=0", "l=0.5&h=0"])
+def test_tune_rejects_values_that_are_not_numbers(app, query):
+    assert get(app, f"/tune?t={TOKEN}&{query}")[0] == 400

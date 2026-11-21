@@ -215,6 +215,9 @@ to right and lightness bottom to top, with grays in a column of their own.
   chosen from the system color panel. Each key shows its contrast against the
   background, in orange when it falls under 4.5:1 for `foreground` or 3:1 for
   an accent.
+- **Lightness**, **saturation** and **hue** sliders fine-tune the color being
+  picked. Saturation is a share of the most the screen can show at that
+  lightness and hue, so no setting falls out of range.
 - **Slug** sets `slug`; left empty, the directory keeps its own name.
 - **Symbol** sets `sfkey`, and marks a symbol another directory already uses.
 

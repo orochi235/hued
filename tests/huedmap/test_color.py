@@ -128,3 +128,25 @@ def test_hex_round_trips_through_rgb():
     for hexv in ("#000000", "#010203", "#ff0080", "#ffffff"):
         assert color.rgb_to_hex(color.hex_to_rgb(hexv)) == hexv
     assert color.hex_to_rgb("#f00") == color.RGB(255, 0, 0)
+
+
+@pytest.mark.parametrize("s", [0.25, 0.5, 0.8])
+def test_place_reads_back_the_saturation_from_lch_was_given(s):
+    for h in (40, 150, 260):
+        got = color.place(color.from_lch(0.6, h, s))
+        assert got["s"] == pytest.approx(s, abs=0.04)
+
+
+def test_place_gives_a_gray_no_saturation_and_a_primary_full():
+    assert color.place("#808080")["s"] == pytest.approx(0, abs=0.01)
+    assert color.place("#ff0000")["s"] == pytest.approx(1, abs=0.02)
+    assert color.place("#000000")["s"] == 0
+
+
+def test_tracks_vary_one_axis_and_hold_the_other_two():
+    tracks = color.tracks_for(0.6, 200, 0.5)
+    assert set(tracks) == {"l", "s", "h"}
+    lightness = [color.place(x)["l"] for x in tracks["l"]]
+    assert lightness == sorted(lightness)
+    assert color.place(tracks["s"][0])["gray"]
+    assert {round(color.place(x)["l"], 1) for x in tracks["h"]} == {0.6}
